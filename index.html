@@ -1489,7 +1489,7 @@ function fetchWCData(){
   }
 
   // Fetch Monthly Net Profits
-  fetch(baseUrl+encodeURIComponent(mnpRange)+qs)
+  fetch(baseUrl+mnpRange.replace(/ /g,'%20')+qs)
     .then(function(r){return r.json();})
     .then(function(d){
       var rows=d.values||[];
@@ -1508,7 +1508,7 @@ function fetchWCData(){
     }).catch(function(){});
 
   // Fetch Key Business Performance Indicators (weekly sales data)
-  fetch(baseUrl+encodeURIComponent(kbpiRange)+qs)
+  fetch(baseUrl+kbpiRange.replace(/ /g,'%20')+qs)
     .then(function(r){return r.json();})
     .then(function(d){
       var rows=d.values||[];
