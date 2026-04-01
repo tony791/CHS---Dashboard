@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
 
     <!-- CENTER: BUSINESS TRACKERS + CALENDAR + KANBAN -->
     <div style="display:flex;flex-direction:column;gap:12px;">
-      <div class="card" style="padding:0;">
+      <div class="card" style="overflow:hidden;padding:0;">
         <!-- TICKER HEADER -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid rgba(240,165,0,.12);">
           <div style="display:flex;align-items:center;gap:8px;">
@@ -331,8 +331,8 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
           </div>
         </div>
         <!-- TICKER STRIP -->
-        <div style="overflow:hidden;position:relative;background:rgba(0,0,0,.2);padding:6px 0;">
-          <div id="ticker-track" style="display:flex;gap:0;white-space:nowrap;animation:ticker 30s linear infinite;">
+        <div style="overflow:hidden;position:relative;background:rgba(0,0,0,.2);padding:6px 0;max-width:100%;">
+          <div id="ticker-track" style="display:inline-flex;gap:0;white-space:nowrap;animation:ticker 30s linear infinite;min-width:200%;">
             <div class="ticker-inner" id="ticker-inner"></div>
             <div class="ticker-inner" id="ticker-inner2"></div>
           </div>
@@ -371,10 +371,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
           <input class="tui" id="tr2-url" placeholder="WC Tracker link..." oninput="updTr(2,this.value)" style="flex:1;font-size:10px;">
           <button class="lkb" id="tr2-lk" onclick="togLock(2)" style="font-size:11px;">🔓</button>
         </div>
-
-        </div>
       </div>
-
 
       <!-- CALENDAR -->
       <div class="card">
