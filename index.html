@@ -1142,7 +1142,7 @@ function saveNoteOnly(){
 
 async function appendToSmartNotesSheet(note){
   // First ensure the Smart Notes sheet tab exists, then append
-  var snAuth=sheetsAuth();var checkUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent(SN_TAB+'!A1')+snAuth.qs;
+  var snAuth=sheetsAuth();var checkUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1')+snAuth.qs;
   try{
     var check=await fetch(checkUrl,{headers:snAuth.headers});
     var checkData=await check.json();
@@ -1156,7 +1156,7 @@ async function appendToSmartNotesSheet(note){
 
   // Append the row
   var row=[[note.date,note.time,note.category,note.rawNote,note.summary,note.tags,note.tasksExtracted,note.taskCount]];
-  var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent(SN_TAB+'!A:H')+':append?valueInputOption=RAW'+(snAuth.qs?snAuth.qs.replace('?','&'):'');
+  var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A:H')+':append?valueInputOption=RAW'+(snAuth.qs?snAuth.qs.replace('?','&'):'');
   try{
     await fetch(appendUrl,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},snAuth.headers),body:JSON.stringify({values:row,majorDimension:'ROWS'})});
   }catch(e){console.log('Sheet append error:',e);}
@@ -1165,7 +1165,7 @@ async function appendToSmartNotesSheet(note){
 function loadNoteHistory(){
   var list=document.getElementById('sn-history-list');
   // Try loading from Sheet first, fall back to localStorage
-  var histAuth=sheetsAuth();var sheetUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent(SN_TAB+'!A2:H51')+histAuth.qs;
+  var histAuth=sheetsAuth();var sheetUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A2:H51')+histAuth.qs;
   fetch(sheetUrl,{headers:histAuth.headers})
     .then(function(r){return r.json();})
     .then(function(d){
@@ -1382,7 +1382,7 @@ if(loadSavedToken()){
 
 function fetchSheetKPIs(){
   // Fetch Job Tracker data rows 5-54 (all columns A-R)
-  var range="'Job Tracker'!A5:R54";
+  var range='Job Tracker!A5:R54';
   var auth=sheetsAuth();
   var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent(range)+auth.qs;
   fetch(url,{headers:auth.headers}).then(function(r){return r.json();}).then(function(d){
@@ -1470,8 +1470,8 @@ function fetchWCData(){
   var today=new Date();
   var currentMonth=today.getMonth(); // 0=Jan
   // Monthly Net Profits: rows 4-16, cols A-D. Row 4=Jan(index 0)... Row 15=Dec(index 11), Row 16=Totals
-  var mnpRange="'Monthly Net Profits'!A4:D16";
-  var kbpiRange="'Key Business Performance Indicators'!A3:I60";
+  var mnpRange='Monthly Net Profits!A4:D16';
+  var kbpiRange='Key Business Performance Indicators!A3:I60';
 
   var baseUrl='https://sheets.googleapis.com/v4/spreadsheets/'+WC_SHEET_ID+'/values/';
   var auth=sheetsAuth();
