@@ -840,6 +840,68 @@ var tasks=JSON.parse(localStorage.getItem('chs_tasks')||'[]'),tFilter='all';
 var gTasksConnected=false;
 var gTasksAccessToken=null;
 
+function fetchGoogleTasks(){
+  if(!gTasksConnected||!gTasksAccessToken)return;
+  // Fetch all task lists first
+  fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists',{
+    headers:{'Authorization':'Bearer '+gTasksAccessToken}
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    var lists=d.items||[];
+    if(!lists.length)return;
+    // Fetch tasks from all lists
+    var promises=lists.map(function(list){
+      return fetch('https://tasks.googleapis.com/tasks/v1/lists/'+list.id+'/tasks?showCompleted=true&maxResults=100',{
+        headers:{'Authorization':'Bearer '+gTasksAccessToken}
+      }).then(function(r){return r.json();}).then(function(d){
+        return (d.items||[]).map(function(t){return Object.assign(t,{_listId:list.id,_listTitle:list.title});});
+      });
+    });
+    return Promise.all(promises);
+  })
+  .then(function(allTasks){
+    if(!allTasks)return;
+    var googleTasks=[].concat.apply([],allTasks);
+    // Merge Google Tasks into local tasks — avoid duplicates by gTasksId
+    var existingIds=tasks.map(function(t){return t.gTasksId;}).filter(Boolean);
+    var newTasks=googleTasks.filter(function(gt){return!existingIds.includes(gt.id);});
+    newTasks.forEach(function(gt){
+      // Parse due date
+      var due='';
+      if(gt.due){var d=new Date(gt.due);due=d.toISOString().split('T')[0];}
+      tasks.push({
+        title:gt.title||'Untitled',
+        due:due,
+        time:'',
+        pri:'',
+        cat:'',
+        notes:gt.notes||'',
+        done:gt.status==='completed',
+        created:gt.updated||new Date().toISOString(),
+        gTasksId:gt.id,
+        gTasksList:gt._listId
+      });
+    });
+    // Update existing tasks status from Google
+    googleTasks.forEach(function(gt){
+      var local=tasks.find(function(t){return t.gTasksId===gt.id;});
+      if(local){local.done=gt.status==='completed';}
+    });
+    saveTasks();
+    renderTasks();
+    // Update badge
+    var badge=document.getElementById('tasks-sync-badge');
+    if(badge){
+      badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;"></span>Google Tasks: '+googleTasks.length+' tasks synced';
+      badge.style.background='rgba(82,192,122,.12)';
+      badge.style.color='var(--green)';
+      badge.style.borderColor='rgba(82,192,122,.3)';
+    }
+  })
+  .catch(function(e){console.log('Google Tasks fetch error:',e);});
+}
+
 function saveTasks(){localStorage.setItem('chs_tasks',JSON.stringify(tasks));}
 
 // ── Sync scaffold: called after OAuth connects ──────────
@@ -1362,6 +1424,9 @@ function onOAuthConnected(){
   // Activate Google Tasks sync
   gTasksConnected=true;
   gTasksAccessToken=oauthToken;
+  fetchGoogleTasks();
+  // Auto refresh tasks every 5 minutes
+  setInterval(fetchGoogleTasks, 5*60*1000);
   updateSyncBadge();
   // Update sheet badge to show write access
   var snBadge=document.getElementById('sn-sheet-badge');
