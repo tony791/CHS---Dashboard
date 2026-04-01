@@ -1387,7 +1387,7 @@ function fetchSheetKPIs(){
   // Fetch Job Tracker data rows 5-54 (all columns A-R)
   var range='Job Tracker!A5:R54';
   var auth=sheetsAuth();
-  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent(range)+auth.qs;
+  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+range.replace(/ /g,'%20')+auth.qs;
   fetch(url,{headers:auth.headers}).then(function(r){return r.json();}).then(function(d){
     var rows=d.values||[];
     var today=new Date();
