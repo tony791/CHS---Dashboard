@@ -1142,9 +1142,9 @@ function saveNoteOnly(){
 
 async function appendToSmartNotesSheet(note){
   // First ensure the Smart Notes sheet tab exists, then append
-  var checkUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent(SN_TAB+'!A1')+'?key='+API_KEY;
+  var snAuth=sheetsAuth();var checkUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent(SN_TAB+'!A1')+snAuth.qs;
   try{
-    var check=await fetch(checkUrl);
+    var check=await fetch(checkUrl,{headers:snAuth.headers});
     var checkData=await check.json();
     if(checkData.error){
       // Sheet tab doesn't exist — create it via batchUpdate (needs write access via service account)
@@ -1156,17 +1156,17 @@ async function appendToSmartNotesSheet(note){
 
   // Append the row
   var row=[[note.date,note.time,note.category,note.rawNote,note.summary,note.tags,note.tasksExtracted,note.taskCount]];
-  var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent(SN_TAB+'!A:H')+':append?valueInputOption=RAW&key='+API_KEY;
+  var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent(SN_TAB+'!A:H')+':append?valueInputOption=RAW'+(snAuth.qs?snAuth.qs.replace('?','&'):'');
   try{
-    await fetch(appendUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:row,majorDimension:'ROWS'})});
+    await fetch(appendUrl,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},snAuth.headers),body:JSON.stringify({values:row,majorDimension:'ROWS'})});
   }catch(e){console.log('Sheet append error:',e);}
 }
 
 function loadNoteHistory(){
   var list=document.getElementById('sn-history-list');
   // Try loading from Sheet first, fall back to localStorage
-  var sheetUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent(SN_TAB+'!A2:H51')+'?key='+API_KEY;
-  fetch(sheetUrl)
+  var histAuth=sheetsAuth();var sheetUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent(SN_TAB+'!A2:H51')+histAuth.qs;
+  fetch(sheetUrl,{headers:histAuth.headers})
     .then(function(r){return r.json();})
     .then(function(d){
       var rows=(d.values||[]).reverse(); // newest first
@@ -1269,6 +1269,14 @@ document.querySelectorAll('.mov').forEach(function(m){m.addEventListener('click'
 // ── LIVE KPI FROM GOOGLE SHEETS ───────────────────────────
 var SHEET_ID='%%JOB_TRACKER_SHEET_ID%%';
 var API_KEY='%%GOOGLE_API_KEY%%';
+
+// Returns auth headers and query string — uses OAuth token when connected, API key otherwise
+function sheetsAuth(){
+  if(oauthToken){
+    return {headers:{'Authorization':'Bearer '+oauthToken},qs:''};
+  }
+  return {headers:{},qs:'?key='+API_KEY};
+}
 
 // ── OAUTH CONFIGURATION ────────────────────────────────
 var OAUTH_CLIENT_ID='%%OAUTH_CLIENT_ID%%';
@@ -1375,8 +1383,9 @@ if(loadSavedToken()){
 function fetchSheetKPIs(){
   // Fetch Job Tracker data rows 5-54 (all columns A-R)
   var range="'Job Tracker'!A5:R54";
-  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent(range)+'?key='+API_KEY;
-  fetch(url).then(function(r){return r.json();}).then(function(d){
+  var auth=sheetsAuth();
+  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent(range)+auth.qs;
+  fetch(url,{headers:auth.headers}).then(function(r){return r.json();}).then(function(d){
     var rows=d.values||[];
     var today=new Date();
     today.setHours(0,0,0,0);
@@ -1465,7 +1474,8 @@ function fetchWCData(){
   var kbpiRange="'Key Business Performance Indicators'!A3:I60";
 
   var baseUrl='https://sheets.googleapis.com/v4/spreadsheets/'+WC_SHEET_ID+'/values/';
-  var qs='?key='+API_KEY;
+  var auth=sheetsAuth();
+  var qs=auth.qs;
 
   function fmt(v){
     if(!v&&v!==0)return'--';
