@@ -623,7 +623,7 @@ function openKpi(k){_ck=k;var c=KPI[k];document.getElementById('kpi-mod-t').text
 function saveKpi(){var v=document.getElementById('kpi-inp').value.trim();if(!v||!_ck)return;localStorage.setItem('chs_kpi_'+_ck,v);document.getElementById(KPI[_ck].el).textContent=v;closeMod('kpi-mod');}
 
 // ── HIGH LEVEL + KANBAN LEAD PIPELINE ───────────────────
-var HL_TOKEN='pit-50ae7193-e9f7-4640-b429-314ff364bc73';
+var HL_TOKEN='%%HL_TOKEN%%';
 var HL_LOC='lZ8L8FAf6K2niuHoFbaw';
 var HL_BASE='https://services.leadconnectorhq.com';
 var HL_HEADERS={'Authorization':'Bearer '+HL_TOKEN,'Version':'2021-07-28','Content-Type':'application/json'};
@@ -752,31 +752,48 @@ function renderKanban(){
   var total=leads.length;
   document.getElementById('kb-total').textContent=total+' lead'+(total!==1?'s':'');
   var board=document.getElementById('kanban-board');
-  board.innerHTML=COLS.map(function(col){
+  var html='';
+  COLS.forEach(function(col){
     var colLeads=leads.filter(function(l){return l.stage===col.id;});
-    var cards=colLeads.map(function(l){
+    var cards='';
+    colLeads.forEach(function(l){
       var tc=l.temp==='hot'?'temp-hot':l.temp==='warm'?'temp-warm':'temp-cold';
       var tl=l.temp==='hot'?'🔥 Hot':l.temp==='warm'?'🌤 Warm':'❄️ Cold';
-      var dot=l.hlId?'<span title="Synced with High Level" style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-left:3px;"></span>':'';
+      var dot=l.hlId?'<span style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-left:3px;"></span>':'';
       var val=l.hlValue?'<span style="font-size:9px;color:var(--green);font-weight:700;">$'+Number(l.hlValue).toLocaleString()+'</span>':'';
-      return'<div class="kb-card" draggable="true" data-id="'+l.id+'" ondragstart="dragStart(event,''+l.id+'')" ondragend="dragEnd(event)">'+
-        '<span class="kb-card-del" onclick="delLead(''+l.id+'')">&#x2715;</span>'+
-        '<div class="kb-card-name">'+l.name+dot+'</div>'+
-        (l.desc?'<div class="kb-card-desc">'+l.desc+'</div>':'')+
-        '<div class="kb-card-meta"><span class="kb-temp '+tc+'">'+tl+'</span>'+val+(l.contact?'<span style="font-size:9px;color:var(--muted)">'+l.contact+'</span>':'')+'</div>'+
-      '</div>';
-    }).join('');
-    return'<div class="kb-col">'+
-      '<div class="kb-header '+col.cls+'">'+
-        '<span class="kb-title">'+col.icon+' '+col.label+'</span>'+
-        '<span class="kb-count">'+colLeads.length+'</span>'+
-      '</div>'+
-      '<div class="kb-body" data-col="'+col.id+'" ondragover="dragOver(event)" ondrop="drop(event,''+col.id+'')" ondragleave="dragLeave(event)">'+
-        cards+
-        '<button class="kb-add" onclick="quickAddLead(''+col.id+'')">+ Add</button>'+
-      '</div>'+
-    '</div>';
-  }).join('');
+      cards+='<div class="kb-card" draggable="true" data-id="'+l.id+'">'
+        +'<span class="kb-card-del" data-del="'+l.id+'">&#x2715;</span>'
+        +'<div class="kb-card-name">'+l.name+dot+'</div>'
+        +(l.desc?'<div class="kb-card-desc">'+l.desc+'</div>':'')
+        +'<div class="kb-card-meta"><span class="kb-temp '+tc+'">'+tl+'</span>'+val+(l.contact?'<span style="font-size:9px;color:var(--muted)">'+l.contact+'</span>':'')+'</div>'
+        +'</div>';
+    });
+    html+='<div class="kb-col">'
+      +'<div class="kb-header '+col.cls+'">'
+      +'<span class="kb-title">'+col.icon+' '+col.label+'</span>'
+      +'<span class="kb-count">'+colLeads.length+'</span>'
+      +'</div>'
+      +'<div class="kb-body" data-col="'+col.id+'">'
+      +cards
+      +'<button class="kb-add" data-add="'+col.id+'">+ Add</button>'
+      +'</div></div>';
+  });
+  board.innerHTML=html;
+  board.querySelectorAll('.kb-card').forEach(function(card){
+    card.addEventListener('dragstart',function(e){dragStart(e,card.getAttribute('data-id'));});
+    card.addEventListener('dragend',dragEnd);
+  });
+  board.querySelectorAll('.kb-body').forEach(function(body){
+    body.addEventListener('dragover',dragOver);
+    body.addEventListener('drop',function(e){drop(e,body.getAttribute('data-col'));});
+    body.addEventListener('dragleave',dragLeave);
+  });
+  board.querySelectorAll('.kb-card-del').forEach(function(btn){
+    btn.addEventListener('click',function(){delLead(btn.getAttribute('data-del'));});
+  });
+  board.querySelectorAll('.kb-add').forEach(function(btn){
+    btn.addEventListener('click',function(){quickAddLead(btn.getAttribute('data-add'));});
+  });
 }
 
 function dragStart(e,id){dragId=id;setTimeout(function(){var el=document.querySelector('[data-id="'+id+'"]');if(el)el.classList.add('dragging');},0);}
@@ -970,7 +987,7 @@ var ss=localStorage.getItem('chs_sub');if(ss){document.getElementById('sub-lnk')
 if(localStorage.getItem('chs_sub_locked')==='1')togSubLock();
 
 // ── SMART NOTES ────────────────────────────────────────
-var SN_SHEET_ID='1En-b0oFOEpUHo29mp0xXrUFWlavE9KiG';
+var SN_SHEET_ID='%%JOB_TRACKER_SHEET_ID%%';
 var SN_TAB='Smart Notes';
 var snHistoryVisible=false;
 var snNotes=JSON.parse(localStorage.getItem('chs_smart_notes')||'[]');
@@ -1250,11 +1267,11 @@ function closeMod(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mov').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('open');});});
 
 // ── LIVE KPI FROM GOOGLE SHEETS ───────────────────────────
-var SHEET_ID='1En-b0oFOEpUHo29mp0xXrUFWlavE9KiG';
-var API_KEY='AIzaSyATf4qvO5go1hp4TxllF4JiaL7aky5jI-8';
+var SHEET_ID='%%JOB_TRACKER_SHEET_ID%%';
+var API_KEY='%%GOOGLE_API_KEY%%';
 
 // ── OAUTH CONFIGURATION ────────────────────────────────
-var OAUTH_CLIENT_ID='767936019307-obb2pijifhjd2qc5alof5jdohrhpaev7.apps.googleusercontent.com';
+var OAUTH_CLIENT_ID='%%OAUTH_CLIENT_ID%%';
 var OAUTH_SCOPES=[
   'https://www.googleapis.com/auth/calendar.readonly',
   'https://www.googleapis.com/auth/tasks',
@@ -1438,7 +1455,7 @@ fetchSheetKPIs();
 setInterval(fetchSheetKPIs, 5*60*1000);
 
 // ── WEALTHY CONTRACTOR LIVE DATA ──────────────────────────
-var WC_SHEET_ID='1KdDzdIqlb0-chIKLLq1uc5w4iSvBn8jjNB_f09A1TPA';
+var WC_SHEET_ID='%%WC_SHEET_ID%%';
 
 function fetchWCData(){
   var today=new Date();
