@@ -1482,9 +1482,11 @@ function fetchWCData(){
 
   function fmt(v){
     if(!v&&v!==0)return'--';
-    var n=parseFloat(String(v).replace(/[$,%]/g,''));
-    if(isNaN(n))return String(v)||'--';
-    if(String(v).includes('%'))return n.toFixed(1)+'%';
+    var s=String(v).trim();
+    if(!s||s==='-'||s==='$ -'||s==='$  -')return'--';
+    if(s.includes('%')){var pct=parseFloat(s.replace(/[^0-9.]/g,''));return isNaN(pct)?s:pct.toFixed(1)+'%';}
+    var n=parseFloat(s.replace(/[^0-9.-]/g,''));
+    if(isNaN(n))return'--';
     return n===0?'$0':'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
   }
 
