@@ -1929,7 +1929,7 @@ function buildTicker(){
   var html=items.map(function(i){
     return'<span style="display:inline-flex;align-items:center;gap:6px;padding:0 20px;border-right:1px solid rgba(255,255,255,.08);">'
       +'<span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">'+i.label+'</span>'
-      +'<span style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:'+i.color+';">'+i.val+'</span>'
+      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:15px;color:'+i.color+';">'+i.val+'</span>'
       +'</span>';
   }).join('');
   var t1=document.getElementById('ticker-inner');
