@@ -1158,7 +1158,7 @@ async function appendToSmartNotesSheet(note){
   var row=[[note.date,note.time,note.category,note.rawNote,note.summary,note.tags,note.tasksExtracted,note.taskCount]];
   var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A:H')+':append?valueInputOption=RAW'+(snAuth.qs?snAuth.qs.replace('?','&'):'');
   try{
-    await fetch(appendUrl,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},snAuth.headers),body:JSON.stringify({values:row,majorDimension:'ROWS'})});
+    await fetch(appendUrl,{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify({values:row,majorDimension:'ROWS'})});
   }catch(e){console.log('Sheet append error:',e);}
 }
 
@@ -1270,12 +1270,15 @@ document.querySelectorAll('.mov').forEach(function(m){m.addEventListener('click'
 var SHEET_ID='%%JOB_TRACKER_SHEET_ID%%';
 var API_KEY='%%GOOGLE_API_KEY%%';
 
-// Returns auth headers and query string — uses OAuth token when connected, API key otherwise
+// For reading sheets — always use API key (sheets are shared publicly)
+// OAuth token is used for write operations only
 function sheetsAuth(){
-  if(oauthToken){
-    return {headers:{'Authorization':'Bearer '+oauthToken},qs:''};
-  }
   return {headers:{},qs:'?key='+API_KEY};
+}
+// For write operations that need OAuth
+function sheetsWriteHeaders(){
+  if(oauthToken) return {'Authorization':'Bearer '+oauthToken,'Content-Type':'application/json'};
+  return {'Content-Type':'application/json'};
 }
 
 // ── OAUTH CONFIGURATION ────────────────────────────────
