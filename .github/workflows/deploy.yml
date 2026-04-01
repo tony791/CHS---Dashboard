@@ -24,13 +24,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject secrets into dashboard
-        run: |
-          sed -i 's|%%GOOGLE_API_KEY%%|${{ secrets.GOOGLE_API_KEY }}|g' index.html
-          sed -i 's|%%OAUTH_CLIENT_ID%%|${{ secrets.OAUTH_CLIENT_ID }}|g' index.html
-          sed -i 's|%%HL_TOKEN%%|${{ secrets.HL_TOKEN }}|g' index.html
-          sed -i 's|%%JOB_TRACKER_SHEET_ID%%|${{ secrets.JOB_TRACKER_SHEET_ID }}|g' index.html
-          sed -i 's|%%WC_SHEET_ID%%|${{ secrets.WC_SHEET_ID }}|g' index.html
+      - name: Inject GOOGLE_API_KEY
+        run: sed -i 's|%%GOOGLE_API_KEY%%|${{ secrets.GOOGLE_API_KEY }}|g' index.html
+
+      - name: Inject OAUTH_CLIENT_ID
+        run: sed -i 's|%%OAUTH_CLIENT_ID%%|${{ secrets.OAUTH_CLIENT_ID }}|g' index.html
+
+      - name: Inject HL_TOKEN
+        run: sed -i 's|%%HL_TOKEN%%|${{ secrets.HL_TOKEN }}|g' index.html
+
+      - name: Inject JOB_TRACKER_SHEET_ID
+        run: sed -i 's|%%JOB_TRACKER_SHEET_ID%%|${{ secrets.JOB_TRACKER_SHEET_ID }}|g' index.html
+
+      - name: Inject WC_SHEET_ID
+        run: sed -i 's|%%WC_SHEET_ID%%|${{ secrets.WC_SHEET_ID }}|g' index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
