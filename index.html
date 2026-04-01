@@ -353,13 +353,35 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
       <div class="card">
         <div class="ch">
           <span class="ct">📅 Calendar</span>
-          <a href="https://calendar.google.com" target="_blank" class="bdg">Open Google Cal ↗</a>
+          <div style="display:flex;gap:8px;">
+            <span class="bdg" onclick="goToday()" style="cursor:pointer;">Today</span>
+            <a href="https://calendar.google.com" target="_blank" class="bdg">Google Cal ↗</a>
+          </div>
         </div>
-        <div style="padding:0;line-height:0;">
-          <iframe src="https://calendar.google.com/calendar/embed?src=tony%40homesolutionsar.com&src=ug22pg9cg1bmuj072l39220dlm75r2d7%40import.calendar.google.com&ctz=America%2FChicago&mode=WEEK&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=1&showCalendars=0"
-            style="border:0;width:100%;height:500px;border-radius:0 0 13px 13px;display:block;filter:invert(1) hue-rotate(175deg) saturate(0.8) brightness(0.85);"
-            frameborder="0" scrolling="no">
-          </iframe>
+        <div class="cb" style="padding:12px 14px;">
+          <!-- Calendar nav -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <button class="cnb" onclick="changeCalView(-1)">‹</button>
+            <div style="text-align:center;">
+              <div id="cal-view-label" style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);letter-spacing:2px;"></div>
+              <div style="display:flex;gap:8px;justify-content:center;margin-top:4px;">
+                <span onclick="setCalMode('week')" id="cal-mode-week" style="font-size:10px;font-weight:700;cursor:pointer;padding:2px 8px;border-radius:20px;background:rgba(240,165,0,.2);color:var(--gold);border:1px solid rgba(240,165,0,.3);">Week</span>
+                <span onclick="setCalMode('month')" id="cal-mode-month" style="font-size:10px;font-weight:700;cursor:pointer;padding:2px 8px;border-radius:20px;background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.1);">Month</span>
+              </div>
+            </div>
+            <button class="cnb" onclick="changeCalView(1)">›</button>
+          </div>
+          <!-- Day of week headers -->
+          <div id="cal-dow-row" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:3px;"></div>
+          <!-- Calendar grid -->
+          <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
+          <!-- Event list for selected day -->
+          <div id="cal-event-list" style="margin-top:10px;border-top:1px solid rgba(240,165,0,.12);padding-top:10px;max-height:180px;overflow-y:auto;display:none;"></div>
+          <!-- Loading state -->
+          <div id="cal-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">
+            <div class="spin" style="margin:0 auto 8px;"></div>
+            Connect Google to load your calendar
+          </div>
         </div>
       </div>
 
@@ -1324,6 +1346,55 @@ function renderMeetings(){
 document.getElementById('meet-date').value=new Date().toISOString().split('T')[0];
 renderMeetings();
 
+function fetchGoogleMeetings(){
+  if(!oauthToken)return;
+  var now=new Date().toISOString();
+  var future=new Date(Date.now()+30*24*60*60*1000).toISOString();
+  var url='https://www.googleapis.com/calendar/v3/calendars/primary/events'
+    +'?timeMin='+encodeURIComponent(now)
+    +'&timeMax='+encodeURIComponent(future)
+    +'&singleEvents=true&orderBy=startTime&maxResults=50';
+  fetch(url,{headers:{'Authorization':'Bearer '+oauthToken}})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var events=d.items||[];
+      var meetEvents=events.filter(function(e){
+        return e.hangoutLink||
+          (e.conferenceData&&e.conferenceData.entryPoints&&
+           e.conferenceData.entryPoints.some(function(ep){return ep.entryPointType==='video';}));
+      });
+      var existingIds=meetings.map(function(m){return m.calEventId;}).filter(Boolean);
+      meetEvents.forEach(function(e){
+        if(existingIds.includes(e.id))return;
+        var meetLink=e.hangoutLink||'';
+        if(!e.hangoutLink&&e.conferenceData&&e.conferenceData.entryPoints){
+          var vep=e.conferenceData.entryPoints.find(function(ep){return ep.entryPointType==='video';});
+          if(vep)meetLink=vep.uri;
+        }
+        if(!meetLink)return;
+        var meetId=meetLink.replace('https://meet.google.com/','');
+        var startDt=e.start&&(e.start.dateTime||e.start.date)||'';
+        var date='',time='';
+        if(startDt){
+          var dt=new Date(startDt);
+          date=dt.toISOString().split('T')[0];
+          time=startDt.includes('T')?dt.toTimeString().substring(0,5):'';
+        }
+        meetings.unshift({id:'cal-'+e.id,calEventId:e.id,title:e.summary||'Meeting',date:date,time:time,link:meetLink,meetId:meetId,source:'calendar'});
+      });
+      localStorage.setItem('chs_meetings',JSON.stringify(meetings));
+      renderMeetings();
+      var badge=document.getElementById('meet-cal-badge');
+      if(badge){
+        badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>'+meetEvents.length+' meetings synced';
+        badge.style.background='rgba(82,192,122,.12)';
+        badge.style.color='var(--green)';
+        badge.style.borderColor='rgba(82,192,122,.3)';
+      }
+    })
+    .catch(function(e){console.log('Calendar meetings error:',e);});
+}
+
 function openMod(id){document.getElementById(id).classList.add('open');}
 function closeMod(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mov').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('open');});});
@@ -1425,8 +1496,11 @@ function onOAuthConnected(){
   gTasksConnected=true;
   gTasksAccessToken=oauthToken;
   fetchGoogleTasks();
-  // Auto refresh tasks every 5 minutes
+  fetchGoogleMeetings();
+  fetchOAuthCalendar();
   setInterval(fetchGoogleTasks, 5*60*1000);
+  setInterval(fetchGoogleMeetings, 5*60*1000);
+  setInterval(fetchOAuthCalendar, 10*60*1000);
   updateSyncBadge();
   // Update sheet badge to show write access
   var snBadge=document.getElementById('sn-sheet-badge');
@@ -1628,7 +1702,140 @@ fetchWCData();
 setInterval(fetchWCData, 5*60*1000);
 
 // ── REFRESH ──────────────────────────────────────────────
-function refreshAll(){fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();}
+// ── CUSTOM OAUTH CALENDAR ────────────────────────────────
+var calMode='week';
+var calViewDate=new Date();
+var calAllEvents=[];
+var calSelectedDate=null;
+var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DOWS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var EV_COLORS=['#F0A500','#E8722A','#52c07a','#5bc0eb','#e05252','#a855f7','#f97316'];
+
+function setCalMode(mode){
+  calMode=mode;
+  var wBtn=document.getElementById('cal-mode-week');
+  var mBtn=document.getElementById('cal-mode-month');
+  if(wBtn){wBtn.style.background=mode==='week'?'rgba(240,165,0,.2)':'transparent';wBtn.style.color=mode==='week'?'var(--gold)':'var(--muted)';}
+  if(mBtn){mBtn.style.background=mode==='month'?'rgba(240,165,0,.2)':'transparent';mBtn.style.color=mode==='month'?'var(--gold)':'var(--muted)';}
+  renderCalendar();
+}
+
+function changeCalView(dir){
+  if(calMode==='week')calViewDate.setDate(calViewDate.getDate()+(dir*7));
+  else calViewDate.setMonth(calViewDate.getMonth()+dir);
+  renderCalendar();
+}
+
+function goToday(){calViewDate=new Date();renderCalendar();}
+
+function getEventsForDate(date){
+  return calAllEvents.filter(function(e){
+    if(!e._startDate)return false;
+    var sd=new Date(e._startDate);
+    return sd.getFullYear()===date.getFullYear()&&sd.getMonth()===date.getMonth()&&sd.getDate()===date.getDate();
+  });
+}
+
+function fmtEvTime(e){
+  if(e.allDay)return'All Day';
+  if(!e._startDate)return'';
+  return new Date(e._startDate).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+}
+
+function renderCalendar(){
+  var today=new Date();
+  var grid=document.getElementById('cal-grid');
+  var dowRow=document.getElementById('cal-dow-row');
+  var label=document.getElementById('cal-view-label');
+  if(!grid||!label)return;
+  dowRow.innerHTML=DOWS.map(function(d){return'<div style="text-align:center;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:3px 0;">'+d+'</div>';}).join('');
+
+  if(calMode==='week'){
+    var sw=new Date(calViewDate);sw.setDate(calViewDate.getDate()-calViewDate.getDay());
+    var ew=new Date(sw);ew.setDate(sw.getDate()+6);
+    label.textContent=MONTHS[sw.getMonth()].substring(0,3)+' '+sw.getDate()+' \u2013 '+MONTHS[ew.getMonth()].substring(0,3)+' '+ew.getDate()+', '+ew.getFullYear();
+    var cells='';
+    for(var i=0;i<7;i++){
+      var d=new Date(sw);d.setDate(sw.getDate()+i);
+      var isT=d.toDateString()===today.toDateString();
+      var isS=calSelectedDate&&d.toDateString()===calSelectedDate.toDateString();
+      var evs=getEventsForDate(d);
+      var ds=d.toISOString().split('T')[0];
+      cells+='<div onclick="selectDay(\''+ds+'\')" style="background:'+(isT?'rgba(240,165,0,.15)':isS?'rgba(232,114,42,.12)':'rgba(0,0,0,.2)')+';border:1px solid '+(isT?'var(--gold)':isS?'var(--orange-lt)':'rgba(255,255,255,.07)')+';border-radius:8px;min-height:120px;padding:6px;cursor:pointer;overflow:hidden;transition:all .15s;">'
+        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;color:'+(isT?'var(--gold)':'var(--cream)')+';margin-bottom:4px;'+(isT?'text-decoration:underline;':'')+'">'+d.getDate()+'</div>'
+        +evs.slice(0,4).map(function(e,idx){var c=EV_COLORS[idx%EV_COLORS.length];return'<div style="font-size:9px;font-weight:700;padding:2px 4px;border-radius:3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+c+'22;color:'+c+';border-left:2px solid '+c+';">'+fmtEvTime(e)+' '+e.summary+'</div>';}).join('')
+        +(evs.length>4?'<div style="font-size:9px;color:var(--muted);">+'+(evs.length-4)+' more</div>':'')
+        +'</div>';
+    }
+    grid.innerHTML=cells;
+  } else {
+    var yr=calViewDate.getFullYear(),mo=calViewDate.getMonth();
+    label.textContent=MONTHS[mo]+' '+yr;
+    var fd=new Date(yr,mo,1).getDay(),dim=new Date(yr,mo+1,0).getDate(),dip=new Date(yr,mo,0).getDate();
+    var cells='';
+    for(var i=0;i<fd;i++)cells+=buildMCell(new Date(yr,mo-1,dip-fd+1+i),true,today);
+    for(var d=1;d<=dim;d++)cells+=buildMCell(new Date(yr,mo,d),false,today);
+    var rem=(fd+dim)%7;if(rem)for(var d=1;d<=7-rem;d++)cells+=buildMCell(new Date(yr,mo+1,d),true,today);
+    grid.innerHTML=cells;
+  }
+}
+
+function buildMCell(date,other,today){
+  var isT=date.toDateString()===today.toDateString();
+  var isS=calSelectedDate&&date.toDateString()===calSelectedDate.toDateString();
+  var evs=getEventsForDate(date);
+  var ds=date.toISOString().split('T')[0];
+  return'<div onclick="selectDay(\''+ds+'\')" style="background:'+(other?'rgba(0,0,0,.1)':isT?'rgba(240,165,0,.15)':isS?'rgba(232,114,42,.12)':'rgba(0,0,0,.2)')+';border:1px solid '+(isT?'var(--gold)':isS?'var(--orange-lt)':'rgba(255,255,255,.07)')+';border-radius:7px;min-height:70px;padding:5px;cursor:pointer;overflow:hidden;opacity:'+(other?'.4':'1')+';transition:all .15s;">'
+    +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:'+(isT?'var(--gold)':'var(--cream)')+';margin-bottom:3px;">'+date.getDate()+'</div>'
+    +evs.slice(0,2).map(function(e,idx){var c=EV_COLORS[idx%EV_COLORS.length];return'<div style="font-size:9px;padding:1px 3px;border-radius:2px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+c+'22;color:'+c+';border-left:2px solid '+c+';">'+e.summary+'</div>';}).join('')
+    +(evs.length>2?'<div style="font-size:8px;color:var(--muted);">+'+(evs.length-2)+' more</div>':'')
+    +'</div>';
+}
+
+function selectDay(ds){
+  calSelectedDate=new Date(ds+'T00:00:00');
+  renderCalendar();
+  var evs=getEventsForDate(calSelectedDate);
+  var list=document.getElementById('cal-event-list');
+  if(!evs.length){list.style.display='none';return;}
+  list.style.display='block';
+  var dateStr=calSelectedDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  list.innerHTML='<div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">'+dateStr+'</div>'
+    +evs.map(function(e,idx){
+      var c=EV_COLORS[idx%EV_COLORS.length];
+      return'<div style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">'
+        +'<div style="width:3px;min-height:30px;background:'+c+';border-radius:2px;flex-shrink:0;margin-top:3px;"></div>'
+        +'<div style="flex:1;">'
+        +'<div style="font-weight:700;font-size:13px;color:var(--cream);">'+e.summary+'</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+fmtEvTime(e)+(e.location?' \u00b7 \ud83d\udccd'+e.location:'')+'</div>'
+        +(e.hangoutLink?'<a href="'+e.hangoutLink+'" target="_blank" style="font-size:10px;color:var(--green);text-decoration:none;font-weight:700;">\ud83c\udfa5 Join Meeting</a>':'')
+        +'</div></div>';
+    }).join('');
+}
+
+function fetchOAuthCalendar(){
+  if(!oauthToken){return;}
+  document.getElementById('cal-loading').style.display='none';
+  var now=new Date();
+  var start=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString();
+  var end=new Date(now.getFullYear(),now.getMonth()+3,0).toISOString();
+  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin='+encodeURIComponent(start)+'&timeMax='+encodeURIComponent(end)+'&singleEvents=true&orderBy=startTime&maxResults=200',
+    {headers:{'Authorization':'Bearer '+oauthToken}})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      calAllEvents=(d.items||[]).map(function(e){
+        e._startDate=e.start&&(e.start.dateTime||e.start.date)||'';
+        e.allDay=!e.start.dateTime;
+        return e;
+      });
+      renderCalendar();
+    })
+    .catch(function(e){console.log('Calendar error:',e);});
+}
+
+renderCalendar();
+
+function refreshAll(){fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}}
 </script>
 </body>
 </html>
