@@ -759,8 +759,8 @@ function renderKanban(){
       var tl=l.temp==='hot'?'🔥 Hot':l.temp==='warm'?'🌤 Warm':'❄️ Cold';
       var dot=l.hlId?'<span title="Synced with High Level" style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-left:3px;"></span>':'';
       var val=l.hlValue?'<span style="font-size:9px;color:var(--green);font-weight:700;">$'+Number(l.hlValue).toLocaleString()+'</span>':'';
-      return'<div class="kb-card" draggable="true" data-id="'+l.id+'" ondragstart="dragStart(event,\''+l.id+'\')" ondragend="dragEnd(event)">'+
-        '<span class="kb-card-del" onclick="delLead(\''+l.id+'\')">&#x2715;</span>'+
+      return'<div class="kb-card" draggable="true" data-id="'+l.id+'" ondragstart="dragStart(event,''+l.id+'')" ondragend="dragEnd(event)">'+
+        '<span class="kb-card-del" onclick="delLead(''+l.id+'')">&#x2715;</span>'+
         '<div class="kb-card-name">'+l.name+dot+'</div>'+
         (l.desc?'<div class="kb-card-desc">'+l.desc+'</div>':'')+
         '<div class="kb-card-meta"><span class="kb-temp '+tc+'">'+tl+'</span>'+val+(l.contact?'<span style="font-size:9px;color:var(--muted)">'+l.contact+'</span>':'')+'</div>'+
@@ -771,9 +771,9 @@ function renderKanban(){
         '<span class="kb-title">'+col.icon+' '+col.label+'</span>'+
         '<span class="kb-count">'+colLeads.length+'</span>'+
       '</div>'+
-      '<div class="kb-body" data-col="'+col.id+'" ondragover="dragOver(event)" ondrop="drop(event,\''+col.id+'\')" ondragleave="dragLeave(event)">'+
+      '<div class="kb-body" data-col="'+col.id+'" ondragover="dragOver(event)" ondrop="drop(event,''+col.id+'')" ondragleave="dragLeave(event)">'+
         cards+
-        '<button class="kb-add" onclick="quickAddLead(\''+col.id+'\')">+ Add</button>'+
+        '<button class="kb-add" onclick="quickAddLead(''+col.id+'')">+ Add</button>'+
       '</div>'+
     '</div>';
   }).join('');
