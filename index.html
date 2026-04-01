@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     <div class="kpi g"><div class="ki">💵</div><div class="kl">Revenue This Week</div><div class="kv" id="kv-wr"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Collections</div></div>
     <div class="kpi r"><div class="ki">📄</div><div class="kl">Unpaid Invoices</div><div class="kv" id="kv-ui"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Outstanding</div></div>
     <div class="kpi o"><div class="ki">📅</div><div class="kl">Pymt Scheduled</div><div class="kv" id="kv-ps"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Coming up</div></div>
-    <div class="kpi g"><div class="ki">📈</div><div class="kl">Monthly Gross Profit</div><div class="kv" id="kv-mp"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">This month</div></div>
+    <div class="kpi g"><div class="ki">📈</div><div class="kl">Monthly Gross Revenue</div><div class="kv" id="kv-mp"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">This month</div></div>
     <div class="kpi o"><div class="ki">💰</div><div class="kl">Yearly Gross Revenue</div><div class="kv" id="kv-ol"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">YTD 2026</div></div>
   </div>
 
@@ -616,7 +616,7 @@ setInterval(fetchWeather,30*60*1000);
 
 
 // ── KPI ──────────────────────────────────────────────
-var KPI={ji:{el:'kv-ji',lbl:'Jobs In Progress',def:'0'},wr:{el:'kv-wr',lbl:'Revenue This Week',def:'$0'},ui:{el:'kv-ui',lbl:'Unpaid Invoices',def:'$0'},ps:{el:'kv-ps',lbl:'Payments Scheduled',def:'$0'},mp:{el:'kv-mp',lbl:'Monthly Gross Profit',def:'$0'}};
+var KPI={ji:{el:'kv-ji',lbl:'Jobs In Progress',def:'0'},wr:{el:'kv-wr',lbl:'Revenue This Week',def:'$0'},ui:{el:'kv-ui',lbl:'Unpaid Invoices',def:'$0'},ps:{el:'kv-ps',lbl:'Payments Scheduled',def:'$0'},mp:{el:'kv-mp',lbl:'Monthly Gross Revenue',def:'$0'}};
 Object.keys(KPI).forEach(function(k){document.getElementById(KPI[k].el).textContent=localStorage.getItem('chs_kpi_'+k)||KPI[k].def;});
 var _ck=null;
 function openKpi(k){_ck=k;var c=KPI[k];document.getElementById('kpi-mod-t').textContent='Update: '+c.lbl;document.getElementById('kpi-mod-l').textContent=c.lbl;document.getElementById('kpi-inp').value=localStorage.getItem('chs_kpi_'+k)||'';openMod('kpi-mod');}
