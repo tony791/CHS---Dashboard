@@ -355,10 +355,10 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
           </div>
         </div>
         <!-- Tracker links -->
-        <div style="padding:8px 10px;border-top:1px solid rgba(255,255,255,.04);display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:stretch;">
-          <a id="tr1-lnk" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.4);border-radius:6px;padding:7px 10px;text-decoration:none;color:var(--gold);font-size:11px;font-weight:700;transition:all .2s;white-space:nowrap;">📋 Job Cost Tracker</a>
+        <div style="padding:5px 10px;border-top:1px solid rgba(255,255,255,.04);display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:stretch;">
+          <a id="tr1-lnk" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.4);border-radius:6px;padding:4px 10px;text-decoration:none;color:var(--gold);font-size:11px;font-weight:700;transition:all .2s;white-space:nowrap;">📋 Job Cost Tracker</a>
           <div class="tur" style="margin:0;display:flex;align-items:stretch;"><input class="tui" id="tr1-url" placeholder="Paste link..." oninput="updTr(1,this.value)" style="height:100%;box-sizing:border-box;"><button class="lkb" id="tr1-lk" onclick="togLock(1)">🔓</button></div>
-          <a id="tr2-lnk" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.4);border-radius:6px;padding:7px 10px;text-decoration:none;color:var(--gold);font-size:11px;font-weight:700;transition:all .2s;white-space:nowrap;">💰 WC Tracker</a>
+          <a id="tr2-lnk" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.4);border-radius:6px;padding:4px 10px;text-decoration:none;color:var(--gold);font-size:11px;font-weight:700;transition:all .2s;white-space:nowrap;">💰 WC Tracker</a>
           <div class="tur" style="margin:0;display:flex;align-items:stretch;"><input class="tui" id="tr2-url" placeholder="Paste link..." oninput="updTr(2,this.value)" style="height:100%;box-sizing:border-box;"><button class="lkb" id="tr2-lk" onclick="togLock(2)">🔓</button></div>
         </div>
       </div>
@@ -1762,6 +1762,9 @@ function renderCalendar(){
     label.textContent='Upcoming Events';
     dowRow.innerHTML='';
     grid.style.gridTemplateColumns='1fr';
+    grid.style.maxHeight='320px';
+    grid.style.overflowY='auto';
+    grid.style.paddingRight='4px';
     var now=new Date();now.setHours(0,0,0,0);
     var upcoming=calAllEvents.filter(function(e){
       return e._startDate&&new Date(e._startDate)>=now;
@@ -1802,6 +1805,9 @@ function renderCalendar(){
   }
   if(calMode==='week'){
     grid.style.gridTemplateColumns='repeat(7,1fr)';
+    grid.style.maxHeight='';
+    grid.style.overflowY='';
+    grid.style.paddingRight='';
     var sw=new Date(calViewDate);sw.setDate(calViewDate.getDate()-calViewDate.getDay());
     var ew=new Date(sw);ew.setDate(sw.getDate()+6);
     label.textContent=MONTHS[sw.getMonth()].substring(0,3)+' '+sw.getDate()+' \u2013 '+MONTHS[ew.getMonth()].substring(0,3)+' '+ew.getDate()+', '+ew.getFullYear();
@@ -1821,6 +1827,9 @@ function renderCalendar(){
     grid.innerHTML=cells;
   } else {
     grid.style.gridTemplateColumns='repeat(7,1fr)';
+    grid.style.maxHeight='';
+    grid.style.overflowY='';
+    grid.style.paddingRight='';
     var yr=calViewDate.getFullYear(),mo=calViewDate.getMonth();
     label.textContent=MONTHS[mo]+' '+yr;
     var fd=new Date(yr,mo,1).getDay(),dim=new Date(yr,mo+1,0).getDate(),dip=new Date(yr,mo,0).getDate();
