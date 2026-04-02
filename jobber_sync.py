@@ -50,9 +50,27 @@ def script_write(script_url, tab, range_name, values, clear=False, clear_range=N
     if clear and clear_range:
         payload["clear"] = True
         payload["clearRange"] = clear_range
-    r = requests.post(script_url, json=payload)
+    r = requests.post(script_url, json=payload, allow_redirects=True, timeout=30)
     print(f"Script write response: {r.status_code} {r.text[:200]}")
     return r.status_code
+
+def script_write_batched(script_url, tab, start_row, values, clear=False, clear_range=None):
+    # Clear first if needed
+    if clear and clear_range:
+        payload = {"tab": tab, "range": clear_range, "values": [[""] * len(values[0])], "clear": True, "clearRange": clear_range}
+        requests.post(script_url, json=payload, allow_redirects=True, timeout=30)
+    # Write in batches of 10
+    batch_size = 10
+    for i in range(0, len(values), batch_size):
+        batch = values[i:i+batch_size]
+        row = start_row + i
+        col_end = chr(ord('A') + len(batch[0]) - 1)
+        range_name = f"{row}:{row + len(batch) - 1}"
+        full_range = f"A{row}:{col_end}{row + len(batch) - 1}"
+        payload = {"tab": tab, "range": full_range, "values": batch}
+        r = requests.post(script_url, json=payload, allow_redirects=True, timeout=30)
+        print(f"Batch {i//batch_size + 1}: HTTP {r.status_code} {r.text[:100]}")
+    return 200
 
 def sheets_get(sheet_id, range_name):
     encoded = requests.utils.quote(range_name, safe='')
@@ -70,7 +88,7 @@ jobs_data = jobber_query("""
 {
   jobs(first: 50) {
     nodes {
-      id jobNumber title
+      id jobNumber title createdAt
       client { name }
       total
       lineItems(first: 50) {
@@ -81,8 +99,9 @@ jobs_data = jobber_query("""
   }
 }
 """)
-jobs = jobs_data.get("jobs", {}).get("nodes", [])
-print(f"Found {len(jobs)} jobs")
+jobs_all = jobs_data.get("jobs", {}).get("nodes", [])
+jobs = [j for j in jobs_all if (j.get("createdAt") or "").startswith("2026")]
+print(f"Found {len(jobs_all)} total jobs, {len(jobs)} from 2026")
 
 # Step 3: Fetch invoices
 print("Fetching invoices...")
@@ -159,7 +178,7 @@ for job in jobs:
 
 if job_rows:
     print(f"Writing {len(job_rows)} jobs to Job Tracker...")
-    script_write(JOB_TRACKER_SCRIPT, "Job Tracker", "A5:N54", job_rows,
+    script_write_batched(JOB_TRACKER_SCRIPT, "Job Tracker", 5, job_rows,
                  clear=True, clear_range="A5:N54")
 else:
     print("No jobs to write")
