@@ -59,9 +59,9 @@ def script_write_rows(script_url, tab, start_row, values, clear_end_row=60):
     clear_payload = {
         "tab": tab,
         "range": f"A{start_row}:R{clear_end_row}",
-        "values": [],
         "clear": True,
-        "clearRange": f"A{start_row}:R{clear_end_row}"
+        "clearRange": f"A{start_row}:R{clear_end_row}",
+        "values": [[""]*18]
     }
     resp = script_get(script_url, clear_payload)
     print(f"Clear response: {resp[:80]}")
@@ -170,12 +170,6 @@ invoices_data = jobber_query("""
       client { name }
       amounts { depositAmount }
       paymentsTotal
-      payments {
-        nodes {
-          amount
-          receivedAt
-        }
-      }
     }
   }
 }
@@ -183,13 +177,7 @@ invoices_data = jobber_query("""
 invoices = invoices_data.get("invoices", {}).get("nodes", [])
 print(f"Found {len(invoices)} invoices")
 
-# Debug payment data
-print("Sample invoice payment data:")
-for inv in invoices[:3]:
-    pymts = inv.get("payments",{}).get("nodes",[]) or []
-    print(f"  Invoice #{inv.get('invoiceNumber','?')}: {len(pymts)} payments, status={inv.get('invoiceStatus','?')}")
-    for p in pymts[:2]:
-        print(f"    amount=${p.get('amount','?')} receivedAt={p.get('receivedAt','?')}")
+
 
 # Step 4: Fetch quotes with dates
 print("Fetching quotes...")
@@ -283,24 +271,20 @@ for job in jobs:
     payments_total = float(inv.get("paymentsTotal") or 0) if inv else 0
     deposit = float((inv.get("amounts") or {}).get("depositAmount") or 0) if inv else 0
 
-    # Get payment dates from invoice
-    payments_list = []
+    # Payment dates - use dueDate for deposit and issuedDate for final
+    # since Jobber doesn't expose individual payment dates on invoices
+    deposit_date = ""
+    final_payment_date = ""
     if inv:
-        payments_list = inv.get("payments",{}).get("nodes",[]) or []
-    # Sort by date
-    payments_list = sorted(payments_list, key=lambda p: p.get("receivedAt","") or "")
-    deposit_date = fmt_date(payments_list[0].get("receivedAt","")) if payments_list else ""
-    final_payment_date = fmt_date(payments_list[-1].get("receivedAt","")) if len(payments_list) > 1 else ""
-    # If only one payment and it matches full amount, it's the final payment
-    if len(payments_list) == 1:
-        pmt = payments_list[0]
-        pmt_amt = float(pmt.get("amount") or 0)
-        if deposit and pmt_amt <= deposit * 1.1:
-            deposit_date = fmt_date(pmt.get("receivedAt",""))
-            final_payment_date = ""
-        else:
-            deposit_date = ""
-            final_payment_date = fmt_date(pmt.get("receivedAt",""))
+        payments_total = float(inv.get("paymentsTotal") or 0)
+        inv_total = float(inv.get("total") or 0)
+        inv_status = inv.get("invoiceStatus","")
+        if inv_status == "PAID":
+            # Fully paid - use dueDate as final payment date
+            final_payment_date = fmt_date(inv.get("dueDate",""))
+        elif payments_total > 0 and payments_total < inv_total:
+            # Partial payment (deposit) - use issuedDate
+            deposit_date = fmt_date(inv.get("issuedDate",""))
     inv_status = inv.get("invoiceStatus","") if inv else ""
 
     # Visits - check job status instead to avoid throttling
@@ -353,17 +337,16 @@ if job_rows:
 else:
     print("No jobs to write")
 
-# Step 6: Weekly metrics - use actual payment received dates
+# Step 6: Weekly metrics - use dueDate of PAID invoices as proxy for payment date
 weekly_collections = 0
 for inv in invoices:
-    pymts = inv.get("payments",{}).get("nodes",[]) or []
-    for pmt in pymts:
-        received = fmt_date(pmt.get("receivedAt",""))
-        if received:
+    if inv.get("invoiceStatus") == "PAID":
+        due = fmt_date(inv.get("dueDate",""))
+        if due:
             try:
-                d = datetime.date.fromisoformat(received)
+                d = datetime.date.fromisoformat(due)
                 if week_start <= d <= week_end:
-                    weekly_collections += float(pmt.get("amount") or 0)
+                    weekly_collections += float(inv.get("paymentsTotal") or 0)
             except: pass
 
 weekly_new_sales = 0
