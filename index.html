@@ -421,15 +421,15 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
           <div style="margin-bottom:10px;">
             <textarea id="sn-input" placeholder="Write your notes here... Claude will summarize, extract tasks, and save everything automatically." style="width:100%;background:rgba(0,0,0,.28);border:1px solid rgba(240,165,0,.18);border-radius:9px;color:var(--cream);font-family:'Nunito',sans-serif;font-size:13px;padding:10px 12px;resize:vertical;min-height:90px;outline:none;line-height:1.5;" onfocus="this.style.borderColor='rgba(240,165,0,.45)'" onblur="this.style.borderColor='rgba(240,165,0,.18)'"></textarea>
           </div>
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;">
-            <select id="sn-cat" style="background:rgba(0,0,0,.3);border:1px solid rgba(240,165,0,.2);border-radius:7px;color:var(--cream);font-family:'Nunito',sans-serif;font-size:11px;padding:6px 7px;outline:none;width:100px;flex-shrink:0;">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+            <select id="sn-cat" style="background:rgba(0,0,0,.3);border:1px solid rgba(240,165,0,.2);border-radius:7px;color:var(--cream);font-family:'Nunito',sans-serif;font-size:11px;padding:7px 6px;outline:none;flex:1;">
               <option value="">— Category</option>
               <option>Job</option><option>Admin</option><option>Finance</option>
               <option>Follow Up</option><option>Marketing</option><option>Personal</option><option>Meeting</option>
             </select>
-            <button onclick="processNote()" id="sn-process-btn" style="background:linear-gradient(135deg,var(--gold),var(--orange-lt));border:none;border-radius:8px;color:var(--dark);font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;padding:7px 12px;cursor:pointer;white-space:nowrap;flex:1;">✨ Process</button>
-            <button onclick="importMeetingNotes()" id="import-meeting-btn" style="background:rgba(82,192,122,.12);border:1px solid rgba(82,192,122,.3);border-radius:8px;color:var(--green);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;padding:7px 12px;cursor:pointer;white-space:nowrap;flex:1;">📹 Meeting</button>
-            <button onclick="saveNoteOnly()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:var(--muted);font-family:'Nunito',sans-serif;font-size:12px;padding:7px 12px;cursor:pointer;white-space:nowrap;flex:1;">💾 Save</button>
+            <button onclick="processNote()" id="sn-process-btn" style="background:linear-gradient(135deg,var(--gold),var(--orange-lt));border:none;border-radius:8px;color:var(--dark);font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;padding:8px 18px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;white-space:nowrap;">✨ Process with Claude</button>
+            <button onclick="importMeetingNotes()" id="import-meeting-btn" style="background:linear-gradient(135deg,rgba(82,192,122,.3),rgba(82,192,122,.15));border:1px solid rgba(82,192,122,.4);border-radius:8px;color:var(--green);font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;padding:8px 18px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;white-space:nowrap;">📹 Import Meeting</button>
+            <button onclick="saveNoteOnly()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:var(--muted);font-family:'Nunito',sans-serif;font-size:12px;padding:8px 12px;cursor:pointer;transition:all .2s;white-space:nowrap;">💾 Save Only</button>
           </div>
 
           <!-- Meeting notes file picker -->
