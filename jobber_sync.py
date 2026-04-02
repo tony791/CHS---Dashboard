@@ -1,4 +1,4 @@
-import os, requests, datetime, sys
+import os, requests, datetime, sys, json
 
 CLIENT_ID = os.environ['JOBBER_CLIENT_ID']
 CLIENT_SECRET = os.environ['JOBBER_CLIENT_SECRET']
@@ -7,8 +7,12 @@ GOOGLE_API_KEY = os.environ['GOOGLE_API_KEY']
 JOB_TRACKER_SHEET_ID = os.environ['JOB_TRACKER_SHEET_ID']
 WC_SHEET_ID = os.environ['WC_SHEET_ID']
 
+JOB_TRACKER_SCRIPT = "https://script.google.com/macros/s/AKfycbzN2yakVRoBYdSa-F-UreDLzl8YctxvCt1vCAqPJEk8kGSIKD8ak-qkSRJwpjNCd_Gm/exec"
+WC_TRACKER_SCRIPT  = "https://script.google.com/macros/s/AKfycbwSatQFSlvP8GY0XXMRjgdN8esc5IJo4T4cTj1kwBShjJ_iRLOc3fnGZ-ezfGbNx5nU/exec"
+
 JOBBER_API = "https://api.getjobber.com/api/graphql"
 
+# Step 1: Refresh access token
 print("Refreshing Jobber access token...")
 token_resp = requests.post(
     "https://api.getjobber.com/api/oauth/token",
@@ -41,16 +45,14 @@ def jobber_query(query):
         print(f"GraphQL errors: {data['errors']}")
     return data.get("data", {})
 
-def sheets_put(sheet_id, range_name, values):
-    encoded = requests.utils.quote(range_name, safe='')
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{encoded}?valueInputOption=USER_ENTERED&key={GOOGLE_API_KEY}"
-    r = requests.put(url, json={"values": values, "range": range_name, "majorDimension": "ROWS"})
+def script_write(script_url, tab, range_name, values, clear=False, clear_range=None):
+    payload = {"tab": tab, "range": range_name, "values": values}
+    if clear and clear_range:
+        payload["clear"] = True
+        payload["clearRange"] = clear_range
+    r = requests.post(script_url, json=payload)
+    print(f"Script write response: {r.status_code} {r.text[:200]}")
     return r.status_code
-
-def sheets_clear(sheet_id, range_name):
-    encoded = requests.utils.quote(range_name, safe='')
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{encoded}:clear?key={GOOGLE_API_KEY}"
-    requests.post(url)
 
 def sheets_get(sheet_id, range_name):
     encoded = requests.utils.quote(range_name, safe='')
@@ -62,7 +64,7 @@ today = datetime.date.today()
 week_start = today - datetime.timedelta(days=(today.weekday() + 1) % 7)
 week_end = week_start + datetime.timedelta(days=6)
 
-# Step 2: Fetch jobs - first let's discover the schema
+# Step 2: Fetch all jobs
 print("Fetching jobs...")
 jobs_data = jobber_query("""
 {
@@ -82,7 +84,7 @@ jobs_data = jobber_query("""
 jobs = jobs_data.get("jobs", {}).get("nodes", [])
 print(f"Found {len(jobs)} jobs")
 
-# Step 3: Fetch invoices with correct fields
+# Step 3: Fetch invoices
 print("Fetching invoices...")
 invoices_data = jobber_query("""
 {
@@ -123,21 +125,20 @@ print("Building Job Tracker data...")
 job_rows = []
 for job in jobs:
     total_price = float(job.get("total") or 0)
-    
-    # Match invoice to job by job number
     job_num = str(job.get("jobNumber",""))
+
+    # Match invoice by subject
     job_inv = None
     for inv in invoices:
-        # Try to match by subject containing job number
         subj = inv.get("subject","") or ""
         if job_num in subj:
             job_inv = inv
             break
-    
+
     invoice_status = job_inv.get("invoiceStatus","N/A") if job_inv else "N/A"
     invoice_total = float(job_inv.get("total") or total_price) if job_inv else total_price
-    outstanding = float((job_inv.get("total") or 0)) - float((job_inv.get("paymentsTotal") or 0)) if job_inv else 0
-    collected = float(job_inv.get("paymentsTotal") or 0) if job_inv else 0
+    payments_total = float(job_inv.get("paymentsTotal") or 0) if job_inv else 0
+    outstanding = invoice_total - payments_total
 
     job_rows.append([
         job.get("jobNumber",""),
@@ -145,38 +146,34 @@ for job in jobs:
         job.get("title",""),
         "Active",
         f"${invoice_total:.2f}",
-        "$0.00",  # Sub costs - expenses API needs separate call
-        "$0.00",  # Mat costs
-        "$0.00",  # Other costs
-        "$0.00",  # Total costs
-        f"${invoice_total:.2f}",  # Net (no costs yet)
+        "$0.00",
+        "$0.00",
+        "$0.00",
+        "$0.00",
+        f"${invoice_total:.2f}",
         invoice_status,
         f"${outstanding:.2f}",
-        f"${collected:.2f}",
+        f"${payments_total:.2f}",
         str(today)
     ])
 
 if job_rows:
-    sheets_clear(JOB_TRACKER_SHEET_ID, "Job Tracker!A5:N54")
-    status = sheets_put(JOB_TRACKER_SHEET_ID, "Job Tracker!A5:N54", job_rows)
-    print(f"Job Tracker updated: HTTP {status} ({len(job_rows)} jobs)")
+    print(f"Writing {len(job_rows)} jobs to Job Tracker...")
+    script_write(JOB_TRACKER_SCRIPT, "Job Tracker", "A5:N54", job_rows,
+                 clear=True, clear_range="A5:N54")
 else:
     print("No jobs to write")
 
-# Step 6: Weekly collections from invoices
+# Step 6: Weekly metrics
 weekly_collections = 0
 for inv in invoices:
-    paid = float(inv.get("paymentsTotal") or 0)
-    # We'll count all paid invoices for now since we don't have payment dates
     if inv.get("invoiceStatus") == "PAID":
-        weekly_collections += paid
+        weekly_collections += float(inv.get("paymentsTotal") or 0)
 
-# Quotes converted this week
 weekly_new_sales = 0
 for q in quotes:
     if q.get("quoteStatus") == "CONVERTED":
-        amt = q.get("amounts",{})
-        weekly_new_sales += float(amt.get("subtotal") or 0)
+        weekly_new_sales += float(q.get("amounts",{}).get("subtotal") or 0)
 
 print(f"Week collections: ${weekly_collections:.2f}, new sales: ${weekly_new_sales:.2f}")
 
@@ -190,9 +187,10 @@ for i, row in enumerate(kbpi_rows):
         break
 
 if target_row:
-    s1 = sheets_put(WC_SHEET_ID, f"Key Business Performance Indicators!C{target_row}", [[weekly_new_sales]])
-    s2 = sheets_put(WC_SHEET_ID, f"Key Business Performance Indicators!D{target_row}", [[weekly_collections]])
-    print(f"KBPI row {target_row} updated: HTTP {s1}, {s2}")
+    print(f"Writing to KBPI row {target_row}...")
+    script_write(WC_TRACKER_SCRIPT, "Key Business Performance Indicators",
+                 f"C{target_row}:D{target_row}",
+                 [[weekly_new_sales, weekly_collections]])
 else:
     print(f"Week ending {week_end_str} not found in KBPI tab")
 
