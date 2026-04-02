@@ -253,7 +253,7 @@ for job in jobs:
 
     other_cost = 0
     total_cost = sub_cost + mat_cost + other_cost
-    markup = (total_price - total_cost)  # net profit
+    net_profit = total_price - total_cost  # net profit after costs
     
     # Invoice data
     inv = invoice_by_job.get(job_num)
@@ -305,8 +305,8 @@ for job in jobs:
         fmt_money(mat_cost),       # G: Materials ($)
         fmt_money(other_cost),     # H: Other Expenses ($)
         fmt_money(total_cost),     # I: Total Costs ($)
-        fmt_money(markup),         # J: Markup / Net Profit
-        fmt_money(invoice_total),  # K: Job Total ($)
+        fmt_money(net_profit),     # J: Net Profit
+        fmt_money(total_price),    # K: Job Total ($)
         status,                    # L: Status
         quote_sent,                # M: Quote Given
         quote_approved,            # N: Quote Approved
