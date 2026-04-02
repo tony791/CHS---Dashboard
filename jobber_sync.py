@@ -1,4 +1,4 @@
-import os, json, requests, datetime
+import os, json, requests, datetime, sys
 
 CLIENT_ID = os.environ['JOBBER_CLIENT_ID']
 CLIENT_SECRET = os.environ['JOBBER_CLIENT_SECRET']
@@ -11,19 +11,28 @@ JOBBER_API = "https://api.getjobber.com/api/graphql"
 
 # Step 1: Refresh access token
 print("Refreshing Jobber access token...")
-token_resp = requests.post("https://api.getjobber.com/api/oauth/token",
-    headers={"Content-Type": "application/json"},
-    json={
+token_resp = requests.post(
+    "https://api.getjobber.com/api/oauth/token",
+    headers={"Content-Type": "application/x-www-form-urlencoded"},
+    data={
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
         "grant_type": "refresh_token",
         "refresh_token": REFRESH_TOKEN
-    })
+    }
+)
+
+print(f"Token refresh HTTP status: {token_resp.status_code}")
+print(f"Token refresh response: {token_resp.text[:500]}")
+
+if token_resp.status_code != 200 or not token_resp.text.strip():
+    print("Token refresh failed - need new refresh token")
+    sys.exit(1)
 
 token_data = token_resp.json()
 if "access_token" not in token_data:
-    print(f"Token refresh failed: {token_data}")
-    exit(1)
+    print(f"No access token in response: {token_data}")
+    sys.exit(1)
 
 ACCESS_TOKEN = token_data["access_token"]
 print("Access token refreshed ✓")
@@ -89,7 +98,6 @@ invoices_data = jobber_query("""
   invoices(first: 100) {
     nodes {
       id invoiceNumber subject total amountOwing status
-      issuedDate dueDate
       client { name }
       job { jobNumber title }
       payments { nodes { amount receivedAt } }
@@ -133,8 +141,7 @@ for job in jobs:
     invoice_status = inv.get("status","N/A")
     amount_owing = float(inv.get("amountOwing") or 0)
     invoice_total = float(inv.get("total") or total_price)
-
-    collected = sum(float(p.get("amount") or 0) for p in inv.get("payments",{}).get("nodes",[]) if inv)
+    collected = sum(float(p.get("amount") or 0) for p in inv.get("payments",{}).get("nodes",[]))
 
     job_rows.append([
         job.get("jobNumber",""),
@@ -160,17 +167,14 @@ if job_rows:
 else:
     print("No active jobs to write")
 
-# Step 6: Weekly collections and new sales
-print(f"Calculating week {week_start} to {week_end}...")
-
+# Step 6: Weekly metrics
 weekly_collections = 0
 for inv in invoices:
     for pmt in inv.get("payments",{}).get("nodes",[]):
         paid_str = (pmt.get("receivedAt") or "")[:10]
         if paid_str:
             try:
-                paid_date = datetime.date.fromisoformat(paid_str)
-                if week_start <= paid_date <= week_end:
+                if week_start <= datetime.date.fromisoformat(paid_str) <= week_end:
                     weekly_collections += float(pmt.get("amount") or 0)
             except: pass
 
@@ -179,19 +183,15 @@ for q in quotes:
     conv_str = (q.get("convertedAt") or "")[:10]
     if conv_str:
         try:
-            conv_date = datetime.date.fromisoformat(conv_str)
-            if week_start <= conv_date <= week_end:
+            if week_start <= datetime.date.fromisoformat(conv_str) <= week_end:
                 weekly_new_sales += float(q.get("total") or 0)
         except: pass
 
-print(f"Week collections: ${weekly_collections:.2f}")
-print(f"Week new sales: ${weekly_new_sales:.2f}")
+print(f"Week {week_start} to {week_end}: collections=${weekly_collections:.2f}, new sales=${weekly_new_sales:.2f}")
 
-# Step 7: Write to WC KBPI tab
+# Step 7: Write to WC KBPI
 kbpi_rows = sheets_get(WC_SHEET_ID, "Key Business Performance Indicators!A3:I60")
 week_end_str = f"{week_end.month}/{week_end.day}"
-print(f"Looking for week ending {week_end_str} in KBPI tab...")
-
 target_row = None
 for i, row in enumerate(kbpi_rows):
     if len(row) > 1 and row[1].strip() == week_end_str:
@@ -201,8 +201,8 @@ for i, row in enumerate(kbpi_rows):
 if target_row:
     s1 = sheets_put(WC_SHEET_ID, f"Key Business Performance Indicators!C{target_row}", [[weekly_new_sales]])
     s2 = sheets_put(WC_SHEET_ID, f"Key Business Performance Indicators!D{target_row}", [[weekly_collections]])
-    print(f"KBPI row {target_row} updated: New Sales HTTP {s1}, Collections HTTP {s2}")
+    print(f"KBPI row {target_row} updated: HTTP {s1}, {s2}")
 else:
-    print(f"Warning: Week ending {week_end_str} not found in KBPI tab")
+    print(f"Week ending {week_end_str} not found in KBPI tab")
 
-print("✓ Jobber sync complete!")
+print("Jobber sync complete!")
