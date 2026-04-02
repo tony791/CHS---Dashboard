@@ -1,4 +1,4 @@
-import os, json, requests, datetime, sys
+import os, requests, datetime, sys
 
 CLIENT_ID = os.environ['JOBBER_CLIENT_ID']
 CLIENT_SECRET = os.environ['JOBBER_CLIENT_SECRET']
@@ -19,19 +19,12 @@ token_resp = requests.post(
         "client_secret": CLIENT_SECRET,
         "grant_type": "refresh_token",
         "refresh_token": REFRESH_TOKEN
-    }
-)
+    })
 
 print(f"Token refresh HTTP status: {token_resp.status_code}")
-print(f"Token refresh response: {token_resp.text[:500]}")
-
-if token_resp.status_code != 200 or not token_resp.text.strip():
-    print("Token refresh failed - need new refresh token")
-    sys.exit(1)
-
 token_data = token_resp.json()
 if "access_token" not in token_data:
-    print(f"No access token in response: {token_data}")
+    print(f"Token refresh failed: {token_data}")
     sys.exit(1)
 
 ACCESS_TOKEN = token_data["access_token"]
@@ -48,7 +41,11 @@ def jobber_query(query):
     if r.status_code != 200:
         print(f"Jobber API error: {r.status_code} {r.text[:300]}")
         return {}
-    return r.json().get("data", {})
+    data = r.json()
+    if "errors" in data:
+        print(f"GraphQL errors: {data['errors']}")
+        return {}
+    return data.get("data", {})
 
 def sheets_put(sheet_id, range_name, values):
     encoded = requests.utils.quote(range_name, safe='')
@@ -71,15 +68,15 @@ today = datetime.date.today()
 week_start = today - datetime.timedelta(days=(today.weekday() + 1) % 7)
 week_end = week_start + datetime.timedelta(days=6)
 
-# Step 2: Fetch active jobs
-print("Fetching active jobs...")
+# Step 2: Fetch jobs (all active statuses)
+print("Fetching jobs...")
 jobs_data = jobber_query("""
 {
   jobs(filter: { status: [ACTIVE, REQUIRES_INVOICING, LATE] }, first: 50) {
     nodes {
       id jobNumber title
       client { name }
-      total createdAt
+      total
       expenses(first: 50) {
         nodes { title total category }
       }
@@ -89,15 +86,16 @@ jobs_data = jobber_query("""
 }
 """)
 jobs = jobs_data.get("jobs", {}).get("nodes", [])
-print(f"Found {len(jobs)} active jobs")
+print(f"Found {len(jobs)} jobs")
 
-# Step 3: Fetch invoices
+# Step 3: Fetch invoices (no status field - use invoiceStatus)
 print("Fetching invoices...")
 invoices_data = jobber_query("""
 {
   invoices(first: 100) {
     nodes {
-      id invoiceNumber subject total amountOwing invoiceStatus
+      id invoiceNumber subject total amountOwing
+      invoiceStatus
       client { name }
       job { jobNumber title }
       payments { nodes { amount receivedAt } }
@@ -165,7 +163,7 @@ if job_rows:
     status = sheets_put(JOB_TRACKER_SHEET_ID, "Job Tracker!A5:N54", job_rows)
     print(f"Job Tracker updated: HTTP {status} ({len(job_rows)} jobs)")
 else:
-    print("No active jobs to write")
+    print("No jobs to write")
 
 # Step 6: Weekly metrics
 weekly_collections = 0
