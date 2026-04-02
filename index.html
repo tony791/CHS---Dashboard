@@ -435,6 +435,18 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
             </button>
           </div>
 
+          <!-- Import Meeting Notes -->
+          <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:10px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);">📹 Google Meet Notes</span>
+              <button onclick="importMeetingNotes()" id="import-meeting-btn" style="background:rgba(82,192,122,.12);border:1px solid rgba(82,192,122,.3);border-radius:7px;color:var(--green);font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;padding:5px 12px;cursor:pointer;transition:all .2s;">
+                ⬇️ Import Latest Meeting
+              </button>
+            </div>
+            <div id="meeting-import-status" style="font-size:10px;color:var(--muted);display:none;"></div>
+            <div id="meeting-files-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+          </div>
+
           <!-- Processing indicator -->
           <div id="sn-processing" style="display:none;background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.2);border-radius:9px;padding:12px 14px;margin-bottom:10px;">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
@@ -1143,6 +1155,80 @@ var ss=localStorage.getItem('chs_sub');if(ss){document.getElementById('sub-lnk')
 if(localStorage.getItem('chs_sub_locked')==='1')togSubLock();
 
 // ── SMART NOTES ────────────────────────────────────────
+
+async function importMeetingNotes(){
+  var btn=document.getElementById('import-meeting-btn');
+  var status=document.getElementById('meeting-import-status');
+  var filesList=document.getElementById('meeting-files-list');
+  var token=localStorage.getItem('chs_google_token');
+  if(!token){alert('Please connect Google first.');return;}
+
+  btn.textContent='⏳ Searching...';
+  btn.disabled=true;
+  status.style.display='block';
+  status.textContent='Searching Google Drive for meeting notes...';
+  filesList.innerHTML='';
+
+  try{
+    // Search Drive for Gemini meeting notes (they're saved in "Meet Recordings" or "Meeting Notes" folder)
+    var query=encodeURIComponent("name contains 'Notes from' or name contains 'Meeting notes' or name contains 'meeting notes'");
+    var url='https://www.googleapis.com/drive/v3/files?q='+query+'&orderBy=createdTime desc&pageSize=5&fields=files(id,name,createdTime,mimeType)';
+    var r=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+    var data=await r.json();
+    var files=data.files||[];
+
+    if(!files.length){
+      status.textContent='No meeting notes found in Google Drive. Make sure Gemini notes are enabled in Google Meet.';
+      btn.textContent='⬇️ Import Latest Meeting';
+      btn.disabled=false;
+      return;
+    }
+
+    status.textContent=`Found ${files.length} meeting note(s). Click one to import:`;
+    filesList.innerHTML=files.map(function(f){
+      var date=new Date(f.createdTime).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      return '<div onclick="loadMeetingFile(\''+f.id+'\',\''+f.name.replace(/'/g,"\\'")+'\')" style="cursor:pointer;background:rgba(0,0,0,.2);border:1px solid rgba(82,192,122,.2);border-radius:7px;padding:8px 10px;font-size:11px;color:var(--cream);display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.borderColor=\'rgba(82,192,122,.5)\'" onmouseout="this.style.borderColor=\'rgba(82,192,122,.2)\'">'
+        +'<span>📄 '+f.name+'</span>'
+        +'<span style="color:var(--muted);font-size:10px;">'+date+'</span>'
+        +'</div>';
+    }).join('');
+
+  }catch(e){
+    status.textContent='Error: '+e.message;
+  }
+  btn.textContent='⬇️ Import Latest Meeting';
+  btn.disabled=false;
+}
+
+async function loadMeetingFile(fileId, fileName){
+  var status=document.getElementById('meeting-import-status');
+  var token=localStorage.getItem('chs_google_token');
+  status.textContent='Loading '+fileName+'...';
+
+  try{
+    // Export Google Doc as plain text
+    var url='https://www.googleapis.com/drive/v3/files/'+fileId+'/export?mimeType=text/plain';
+    var r=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+    var text=await r.text();
+
+    if(!text || text.length < 10){
+      status.textContent='Could not read file content.';
+      return;
+    }
+
+    // Put content in Smart Notes input and set category to Meeting
+    document.getElementById('sn-input').value=text.substring(0,3000);
+    document.getElementById('sn-cat').value='Meeting';
+    status.textContent='✅ Loaded! Click "Process with Claude" to extract action items.';
+    document.getElementById('meeting-files-list').innerHTML='';
+
+    // Scroll to process button
+    document.getElementById('sn-process-btn').scrollIntoView({behavior:'smooth'});
+
+  }catch(e){
+    status.textContent='Error loading file: '+e.message;
+  }
+}
 var SN_SHEET_ID='%%JOB_TRACKER_SHEET_ID%%';
 var SN_TAB='Smart Notes';
 var snHistoryVisible=false;
