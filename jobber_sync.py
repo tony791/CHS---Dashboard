@@ -170,6 +170,12 @@ invoices_data = jobber_query("""
       client { name }
       amounts { depositAmount }
       paymentsTotal
+      payments {
+        nodes {
+          amount
+          receivedAt
+        }
+      }
     }
   }
 }
@@ -268,6 +274,25 @@ for job in jobs:
     invoice_total = float(inv.get("total") or total_price) if inv else total_price
     payments_total = float(inv.get("paymentsTotal") or 0) if inv else 0
     deposit = float((inv.get("amounts") or {}).get("depositAmount") or 0) if inv else 0
+
+    # Get payment dates from invoice
+    payments_list = []
+    if inv:
+        payments_list = inv.get("payments",{}).get("nodes",[]) or []
+    # Sort by date
+    payments_list = sorted(payments_list, key=lambda p: p.get("receivedAt","") or "")
+    deposit_date = fmt_date(payments_list[0].get("receivedAt","")) if payments_list else ""
+    final_payment_date = fmt_date(payments_list[-1].get("receivedAt","")) if len(payments_list) > 1 else ""
+    # If only one payment and it matches full amount, it's the final payment
+    if len(payments_list) == 1:
+        pmt = payments_list[0]
+        pmt_amt = float(pmt.get("amount") or 0)
+        if deposit and pmt_amt <= deposit * 1.1:
+            deposit_date = fmt_date(pmt.get("receivedAt",""))
+            final_payment_date = ""
+        else:
+            deposit_date = ""
+            final_payment_date = fmt_date(pmt.get("receivedAt",""))
     inv_status = inv.get("invoiceStatus","") if inv else ""
 
     # Visits - check job status instead to avoid throttling
@@ -308,8 +333,8 @@ for job in jobs:
         status,                    # L: Status
         quote_sent,                # M: Quote Given
         quote_approved,            # N: Quote Approved
-        fmt_money(deposit),        # O: Pymt Scheduled
-        fmt_money(payments_total), # P: Pymt Collected
+        deposit_date,              # O: Pymt Scheduled (deposit date)
+        final_payment_date,        # P: Pymt Collected (final payment date)
         lead_source,               # Q: Lead Source
         ""                         # R: Notes
     ])
@@ -320,16 +345,17 @@ if job_rows:
 else:
     print("No jobs to write")
 
-# Step 6: Weekly metrics
+# Step 6: Weekly metrics - use actual payment received dates
 weekly_collections = 0
 for inv in invoices:
-    if inv.get("invoiceStatus") == "PAID":
-        issued = fmt_date(inv.get("issuedDate",""))
-        if issued:
+    pymts = inv.get("payments",{}).get("nodes",[]) or []
+    for pmt in pymts:
+        received = fmt_date(pmt.get("receivedAt",""))
+        if received:
             try:
-                d = datetime.date.fromisoformat(issued)
+                d = datetime.date.fromisoformat(received)
                 if week_start <= d <= week_end:
-                    weekly_collections += float(inv.get("paymentsTotal") or 0)
+                    weekly_collections += float(pmt.get("amount") or 0)
             except: pass
 
 weekly_new_sales = 0
