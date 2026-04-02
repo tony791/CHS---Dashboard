@@ -134,6 +134,30 @@ jobs_all = jobs_data.get("jobs", {}).get("nodes", [])
 jobs = [j for j in jobs_all if (j.get("createdAt") or "").startswith("2026")]
 print(f"Found {len(jobs_all)} total jobs, {len(jobs)} from 2026")
 
+# Fetch expenses separately per 2026 job to avoid throttling
+import time
+expenses_by_job = {}
+print("Fetching expenses per job...")
+for job in jobs:
+    job_id = job.get("id","")
+    job_num = str(job.get("jobNumber",""))
+    exp_data = jobber_query("""
+{
+  job(id: "%s") {
+    expenses(first: 50) {
+      nodes { title description total }
+    }
+  }
+}
+""" % job_id)
+    expenses = exp_data.get("job",{}).get("expenses",{}).get("nodes",[]) or []
+    expenses_by_job[job_num] = expenses
+    if expenses:
+        total = sum(float(e.get("total") or 0) for e in expenses)
+        print(f"  Job #{job_num}: ${total:.2f} in expenses")
+    time.sleep(0.3)  # avoid throttling
+print(f"Fetched expenses for {len(expenses_by_job)} jobs")
+
 # Step 3: Fetch invoices
 print("Fetching invoices...")
 invoices_data = jobber_query("""
@@ -223,9 +247,9 @@ for job in jobs:
     line_items = job.get("lineItems",{}).get("nodes",[]) or []
     sub_cost = sum(float(li.get("unitCost") or 0) * float(li.get("quantity") or 1) for li in line_items)
 
-    # Expenses fetched separately to avoid throttling
-    mat_cost = 0  # Will be added in future iteration
-    expenses = []
+    # Expenses from separate query
+    expenses = expenses_by_job.get(job_num, [])
+    mat_cost = sum(float(e.get("total") or 0) for e in expenses)
 
     other_cost = 0
     total_cost = sub_cost + mat_cost + other_cost
