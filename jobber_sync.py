@@ -75,7 +75,7 @@ week_end = week_start + datetime.timedelta(days=6)
 print("Fetching active jobs...")
 jobs_data = jobber_query("""
 {
-  jobs(filter: { status: [ACTIVE] }, first: 50) {
+  jobs(filter: { status: [ACTIVE, REQUIRES_INVOICING, LATE] }, first: 50) {
     nodes {
       id jobNumber title
       client { name }
@@ -97,7 +97,7 @@ invoices_data = jobber_query("""
 {
   invoices(first: 100) {
     nodes {
-      id invoiceNumber subject total amountOwing status
+      id invoiceNumber subject total amountOwing invoiceStatus
       client { name }
       job { jobNumber title }
       payments { nodes { amount receivedAt } }
@@ -138,7 +138,7 @@ for job in jobs:
     job_num = str(job.get("jobNumber",""))
     job_invoices = [i for i in invoices if i.get("job") and str(i["job"].get("jobNumber","")) == job_num]
     inv = job_invoices[0] if job_invoices else {}
-    invoice_status = inv.get("status","N/A")
+    invoice_status = inv.get("invoiceStatus","N/A")
     amount_owing = float(inv.get("amountOwing") or 0)
     invoice_total = float(inv.get("total") or total_price)
     collected = sum(float(p.get("amount") or 0) for p in inv.get("payments",{}).get("nodes",[]))
