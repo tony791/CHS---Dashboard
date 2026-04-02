@@ -158,14 +158,6 @@ for job in jobs:
     time.sleep(0.3)  # avoid throttling
 print(f"Fetched expenses for {len(expenses_by_job)} jobs")
 
-# Debug: check payment data on first invoice
-print("Sample invoice payment data:")
-for inv in invoices[:3]:
-    pymts = inv.get("payments",{}).get("nodes",[]) or []
-    print(f"  Invoice #{inv.get('invoiceNumber','?')}: {len(pymts)} payments, status={inv.get('invoiceStatus','?')}")
-    for p in pymts:
-        print(f"    amount=${p.get('amount','?')} receivedAt={p.get('receivedAt','?')}")
-
 # Step 3: Fetch invoices
 print("Fetching invoices...")
 invoices_data = jobber_query("""
@@ -190,6 +182,14 @@ invoices_data = jobber_query("""
 """)
 invoices = invoices_data.get("invoices", {}).get("nodes", [])
 print(f"Found {len(invoices)} invoices")
+
+# Debug payment data
+print("Sample invoice payment data:")
+for inv in invoices[:3]:
+    pymts = inv.get("payments",{}).get("nodes",[]) or []
+    print(f"  Invoice #{inv.get('invoiceNumber','?')}: {len(pymts)} payments, status={inv.get('invoiceStatus','?')}")
+    for p in pymts[:2]:
+        print(f"    amount=${p.get('amount','?')} receivedAt={p.get('receivedAt','?')}")
 
 # Step 4: Fetch quotes with dates
 print("Fetching quotes...")
