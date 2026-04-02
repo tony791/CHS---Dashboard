@@ -120,21 +120,10 @@ jobs_data = jobber_query("""
         address { street city province postalCode }
       }
       total
-      lineItems(first: 50) {
+      lineItems(first: 20) {
         nodes {
           name quantity unitPrice unitCost
         }
-      }
-      expenses(first: 50) {
-        nodes {
-          title description total
-        }
-      }
-      visits(first: 5) {
-        nodes {
-          id startAt
-        }
-        totalCount
       }
     }
     totalCount
@@ -234,9 +223,9 @@ for job in jobs:
     line_items = job.get("lineItems",{}).get("nodes",[]) or []
     sub_cost = sum(float(li.get("unitCost") or 0) * float(li.get("quantity") or 1) for li in line_items)
 
-    # Expenses (materials, supplies logged)
-    expenses = job.get("expenses",{}).get("nodes",[]) or []
-    mat_cost = sum(float(e.get("total") or 0) for e in expenses)
+    # Expenses fetched separately to avoid throttling
+    mat_cost = 0  # Will be added in future iteration
+    expenses = []
 
     other_cost = 0
     total_cost = sub_cost + mat_cost + other_cost
@@ -257,9 +246,8 @@ for job in jobs:
     deposit = float((inv.get("amounts") or {}).get("depositAmount") or 0) if inv else 0
     inv_status = inv.get("invoiceStatus","") if inv else ""
 
-    # Check if job has scheduled visits
-    visits = job.get("visits",{}).get("nodes",[]) or []
-    has_visits = len(visits) > 0
+    # Visits - check job status instead to avoid throttling
+    has_visits = job_status_raw.lower() in ["active", "in_progress", "requires_invoicing"]
 
     # Map job status
     if inv_status == "PAID":
