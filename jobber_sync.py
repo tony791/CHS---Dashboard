@@ -115,7 +115,6 @@ jobs_data = jobber_query("""
         name
         phones { number }
         emails { address }
-        referralSource
       }
       property {
         address { street city province postalCode }
@@ -175,9 +174,7 @@ quotes_data = jobber_query("""
       quoteStatus
       amounts { subtotal }
       createdAt
-      approvedAt
       sentAt
-      convertedAt
       client { name }
       jobberWebUri
     }
@@ -231,7 +228,7 @@ for job in jobs:
     emails_list = job.get("client",{}).get("emails",[]) or []
     phone = phones[0].get("number","") if phones else ""
     email = emails_list[0].get("address","") if emails_list else ""
-    lead_source = job.get("client",{}).get("referralSource","") or "Jobber"
+    lead_source = "Jobber"
 
     # Costs from line items (unitCost = subcontractor/material cost)
     line_items = job.get("lineItems",{}).get("nodes",[]) or []
@@ -284,7 +281,7 @@ for job in jobs:
     client_name = job.get("client",{}).get("name","")
     q = quote_by_job.get(client_name)
     quote_sent = fmt_date(q.get("sentAt","") if q else "")
-    quote_approved = fmt_date(q.get("approvedAt","") if q else "")
+    quote_approved = fmt_date(q.get("createdAt","") if q else "")
 
     job_rows.append([
         job_num,                    # A: Job #
@@ -328,7 +325,7 @@ for inv in invoices:
 weekly_new_sales = 0
 for q in quotes:
     if q.get("quoteStatus") == "CONVERTED":
-        conv = fmt_date(q.get("convertedAt",""))
+        conv = fmt_date(q.get("createdAt",""))
         if conv:
             try:
                 d = datetime.date.fromisoformat(conv)
