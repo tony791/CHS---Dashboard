@@ -553,20 +553,8 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
         </div>
         <div class="cb">
           <!-- Saved meetings list -->
-          <div id="meet-list" style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px;">
-            <div class="empty" id="meet-empty">No meetings saved yet</div>
-          </div>
-
-          <!-- Add meeting form -->
-          <div style="border-top:1px solid rgba(240,165,0,.12);padding-top:10px;">
-            <div style="font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Add Meeting</div>
-            <input class="tui" id="meet-title" placeholder="Meeting name..." style="width:100%;margin-bottom:6px;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
-              <input class="tui" type="date" id="meet-date">
-              <input class="tui" type="time" id="meet-time">
-            </div>
-            <input class="tui" id="meet-link" placeholder="Paste Google Meet link or ID..." style="width:100%;margin-bottom:8px;">
-            <button onclick="saveMeeting()" style="width:100%;background:rgba(82,192,122,.15);border:1px solid rgba(82,192,122,.35);color:var(--green);border-radius:8px;padding:8px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s;" onmouseover="this.style.background='rgba(82,192,122,.28)'" onmouseout="this.style.background='rgba(82,192,122,.15)'">Save Meeting</button>
+          <div id="meet-list" style="display:flex;flex-direction:column;gap:7px;">
+            <div class="empty" id="meet-empty">No upcoming meetings</div>
           </div>
         </div>
       </div>
