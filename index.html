@@ -85,7 +85,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1900px;margin:
 .kb-header{border-radius:9px 9px 0 0;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;}
 .kb-title{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1.5px;color:var(--cream);}
 .kb-count{font-size:10px;font-weight:800;background:rgba(0,0,0,.3);padding:2px 7px;border-radius:20px;color:var(--cream);}
-.kb-body{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-top:none;border-radius:0 0 9px 9px;min-height:120px;padding:8px 6px;display:flex;flex-direction:column;gap:6px;}
+.kb-body{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-top:none;border-radius:0 0 9px 9px;min-height:120px;max-height:320px;overflow-y:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;}
 .kb-body.drag-over{background:rgba(240,165,0,.08);border-color:rgba(240,165,0,.3);}
 
 /* Column accent colors */
@@ -257,10 +257,8 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
             <a class="ql" href="https://mail.google.com" target="_blank"><span class="qi">📧</span><div><div>Gmail</div><div class="qs">Email</div></div></a>
             <a class="ql" href="https://calendar.google.com" target="_blank"><span class="qi">📅</span><div><div>Calendar</div><div class="qs">Schedule</div></div></a>
             <a class="ql" href="https://drive.google.com" target="_blank"><span class="qi">📁</span><div><div>Drive</div><div class="qs">Files & Docs</div></div></a>
-            <a class="ql" href="https://maps.google.com" target="_blank"><span class="qi">📍</span><div><div>Maps</div><div class="qs">Navigate</div></div></a>
             <a class="ql" href="https://contacts.google.com" target="_blank"><span class="qi">👥</span><div><div>Contacts</div><div class="qs">Customers</div></div></a>
             <a class="ql" href="https://tasks.google.com" target="_blank"><span class="qi">✅</span><div><div>Tasks</div><div class="qs">To-do list</div></div></a>
-            <a class="ql" href="https://business.google.com" target="_blank"><span class="qi">⭐</span><div><div>Google Business</div><div class="qs">Profile & Reviews</div></div></a>
             <a class="ql" href="https://keep.google.com" target="_blank"><span class="qi">📌</span><div><div>Google Keep</div><div class="qs">Quick notes</div></div></a>
           </div>
           <div class="qlsec">Social & Reviews</div>
@@ -273,14 +271,29 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
           <div class="qlsec">Advertising</div>
           <div class="qlg s1">
             <a class="ql" href="https://ads.google.com/localservices/inbox?cid=3217819470&bid=10998717206&pid=9999999999&euid=1473729199&hl=en&gl=US" target="_blank"><span class="qi">📋</span><div><div>Google Local Services</div><div class="qs">Leads & inbox</div></div></a>
+            <a class="ql" href="https://business.google.com" target="_blank"><span class="qi">⭐</span><div><div>Google Business</div><div class="qs">Profile & Reviews</div></div></a>
           </div>
           <div class="qlsec">Spreadsheets</div>
-          <div class="qlg s1">
-            <a class="ql" id="sub-lnk" href="https://drive.google.com" target="_blank"><span class="qi">👷</span><div><div>Subcontractor Sheet</div><div class="qs">Rates & contacts</div></div></a>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+            <a class="ql" id="tr1-ql-lnk" href="#" target="_blank" style="flex:1;"><span class="qi">📋</span><div><div>Job Cost Tracker</div><div class="qs">Cost tracking · Dashboard</div></div></a>
+            <button class="lkb" id="tr1-lk" onclick="togLock(1)" title="Lock to hide" style="flex-shrink:0;">🔓</button>
           </div>
-          <div class="tur" style="margin-top:6px;">
+          <div class="tur" id="tr1-url-row" style="margin-top:4px;">
+            <input class="tui" id="tr1-url" placeholder="Paste Job Tracker link..." oninput="updTr(1,this.value)">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+            <a class="ql gc" id="tr2-ql-lnk" href="#" target="_blank" style="flex:1;"><span class="qi">💰</span><div><div>Wealthy Contractor Tracker</div><div class="qs">Financial growth · Profit planning</div></div></a>
+            <button class="lkb" id="tr2-lk" onclick="togLock(2)" title="Lock to hide" style="flex-shrink:0;">🔓</button>
+          </div>
+          <div class="tur" id="tr2-url-row" style="margin-top:4px;">
+            <input class="tui" id="tr2-url" placeholder="Paste Wealthy Contractor link..." oninput="updTr(2,this.value)">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+            <a class="ql" id="sub-lnk" href="https://drive.google.com" target="_blank" style="flex:1;"><span class="qi">👷</span><div><div>Subcontractor Sheet</div><div class="qs">Rates & contacts</div></div></a>
+            <button class="lkb" id="sub-lk" onclick="togSubLock()" title="Lock to hide" style="flex-shrink:0;">🔓</button>
+          </div>
+          <div class="tur" id="sub-url-row" style="margin-top:4px;">
             <input class="tui" id="sub-url" placeholder="Paste Subcontractor Sheet link..." oninput="updSub(this.value)">
-            <button class="lkb" id="sub-lk" onclick="togSubLock()" title="Lock to prevent changes">🔓</button>
           </div>
         </div>
       </div>
@@ -353,13 +366,6 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
             <div style="font-size:8px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">Close Rate</div>
             <div id="wc-wk-close" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--blue);">--</div>
           </div>
-        </div>
-        <!-- Tracker links -->
-        <div style="padding:5px 10px;border-top:1px solid rgba(255,255,255,.04);display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:stretch;">
-          <a id="tr1-lnk" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.4);border-radius:6px;padding:4px 10px;text-decoration:none;color:var(--gold);font-size:11px;font-weight:700;transition:all .2s;white-space:nowrap;">📋 Job Cost Tracker</a>
-          <div class="tur" style="margin:0;display:flex;align-items:stretch;"><input class="tui" id="tr1-url" placeholder="Paste link..." oninput="updTr(1,this.value)" style="height:100%;box-sizing:border-box;"><button class="lkb" id="tr1-lk" onclick="togLock(1)">🔓</button></div>
-          <a id="tr2-lnk" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.4);border-radius:6px;padding:4px 10px;text-decoration:none;color:var(--gold);font-size:11px;font-weight:700;transition:all .2s;white-space:nowrap;">💰 WC Tracker</a>
-          <div class="tur" style="margin:0;display:flex;align-items:stretch;"><input class="tui" id="tr2-url" placeholder="Paste link..." oninput="updTr(2,this.value)" style="height:100%;box-sizing:border-box;"><button class="lkb" id="tr2-lk" onclick="togLock(2)">🔓</button></div>
         </div>
       </div>
 
@@ -1064,12 +1070,57 @@ renderTasks();
 
 // ── TRACKERS ──────────────────────────────────────────
 var locked={1:false,2:false};
-function updTr(n,url){if(locked[n])return;document.getElementById('tr'+n+'-lnk').href=url||'#';localStorage.setItem('chs_tr'+n,url);}
-function togLock(n){var inp=document.getElementById('tr'+n+'-url'),btn=document.getElementById('tr'+n+'-lk');locked[n]=!locked[n];inp.disabled=locked[n];inp.style.opacity=locked[n]?'0.4':'1';btn.textContent=locked[n]?'🔒':'🔓';localStorage.setItem('chs_trl'+n,locked[n]?'1':'0');}
-[1,2].forEach(function(n){var sv=localStorage.getItem('chs_tr'+n),lk=localStorage.getItem('chs_trl'+n)==='1';if(sv){document.getElementById('tr'+n+'-lnk').href=sv;document.getElementById('tr'+n+'-url').value=sv;}if(lk)togLock(n);});
+function updTr(n,url){
+  if(locked[n])return;
+  var lnk=document.getElementById('tr'+n+'-lnk');
+  var qlLnk=document.getElementById('tr'+n+'-ql-lnk');
+  if(lnk)lnk.href=url||'#';
+  if(qlLnk)qlLnk.href=url||'#';
+  localStorage.setItem('chs_tr'+n,url);
+}
+function togLock(n){
+  var inp=document.getElementById('tr'+n+'-url');
+  var btn=document.getElementById('tr'+n+'-lk');
+  var row=document.getElementById('tr'+n+'-url-row');
+  locked[n]=!locked[n];
+  if(locked[n]){
+    // Lock and hide input row
+    inp.disabled=true;
+    btn.textContent='🔒';
+    if(row)row.style.display='none';
+  } else {
+    // Unlock and show input row
+    inp.disabled=false;
+    btn.textContent='🔓';
+    if(row)row.style.display='flex';
+  }
+  localStorage.setItem('chs_trl'+n,locked[n]?'1':'0');
+}
+[1,2].forEach(function(n){
+  var sv=localStorage.getItem('chs_tr'+n);
+  var lk=localStorage.getItem('chs_trl'+n)==='1';
+  if(sv){
+    var lnk=document.getElementById('tr'+n+'-lnk');
+    var qlLnk=document.getElementById('tr'+n+'-ql-lnk');
+    var inp=document.getElementById('tr'+n+'-url');
+    if(lnk)lnk.href=sv;
+    if(qlLnk)qlLnk.href=sv;
+    if(inp)inp.value=sv;
+  }
+  if(lk)togLock(n);
+});
 var subLocked=false;
 function updSub(url){if(subLocked)return;document.getElementById('sub-lnk').href=url||'https://drive.google.com';localStorage.setItem('chs_sub',url);}
-function togSubLock(){var inp=document.getElementById('sub-url'),btn=document.getElementById('sub-lk');subLocked=!subLocked;inp.disabled=subLocked;inp.style.opacity=subLocked?'0.4':'1';btn.textContent=subLocked?'🔒':'🔓';localStorage.setItem('chs_sub_locked',subLocked?'1':'0');}
+function togSubLock(){
+  var inp=document.getElementById('sub-url');
+  var btn=document.getElementById('sub-lk');
+  var row=document.getElementById('sub-url-row');
+  subLocked=!subLocked;
+  inp.disabled=subLocked;
+  btn.textContent=subLocked?'🔒':'🔓';
+  if(row)row.style.display=subLocked?'none':'flex';
+  localStorage.setItem('chs_sub_locked',subLocked?'1':'0');
+}
 var ss=localStorage.getItem('chs_sub');if(ss){document.getElementById('sub-lnk').href=ss;document.getElementById('sub-url').value=ss;}
 if(localStorage.getItem('chs_sub_locked')==='1')togSubLock();
 
@@ -1593,7 +1644,7 @@ function fetchSheetKPIs(){
     document.getElementById('kv-ui').textContent=fmt(unpaidInvoices);
     document.getElementById('kv-ps').textContent=fmt(pymtScheduled);
     document.getElementById('kv-mp').textContent=fmt(monthlyProfit);
-    document.getElementById('kv-ol').textContent=openLeads;
+    // openLeads count stored internally (not displayed in KPI strip)
 
     // Show last updated time
     var now=new Date();
