@@ -49,7 +49,7 @@ def script_get(script_url, payload):
     try:
         r = requests.get(script_url,
             params={"payload": json.dumps(payload)},
-            timeout=30)
+            timeout=60)
         return r.text[:300]
     except Exception as ex:
         return f"Error: {ex}"
@@ -58,10 +58,10 @@ def script_write_rows(script_url, tab, start_row, values, clear_end_row=60):
     # Clear range first
     clear_payload = {
         "tab": tab,
-        "range": f"A{start_row}:R{clear_end_row}",
         "clear": True,
         "clearRange": f"A{start_row}:R{clear_end_row}",
-        "values": [[""]*18]
+        "range": f"A{start_row}:R{clear_end_row}",
+        "values": [["","","","","","","","","","","","","","","","","",""]]
     }
     resp = script_get(script_url, clear_payload)
     print(f"Clear response: {resp[:80]}")
@@ -203,7 +203,7 @@ print(f"Found {len(quotes)} quotes")
 print("Fetching payment records...")
 payments_data = jobber_query("""
 {
-  jobberPayments(first: 100) {
+  payments(first: 100) {
     nodes {
       id
       amount
@@ -219,7 +219,7 @@ payments_data = jobber_query("""
   }
 }
 """)
-all_payments = payments_data.get("jobberPayments", {}).get("nodes", []) or []
+all_payments = payments_data.get("payments", {}).get("nodes", []) or []
 print(f"Found {len(all_payments)} payment records")
 
 # Build payment lookup by invoice ID
