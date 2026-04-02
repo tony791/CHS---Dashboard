@@ -1,0 +1,265 @@
+name: Jobber Sync
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Every hour
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Refresh Jobber Token
+        id: refresh
+        run: |
+          RESPONSE=$(curl -s -X POST "https://api.getjobber.com/api/oauth/token" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"client_id\": \"${{ secrets.JOBBER_CLIENT_ID }}\",
+              \"client_secret\": \"${{ secrets.JOBBER_CLIENT_SECRET }}\",
+              \"grant_type\": \"refresh_token\",
+              \"refresh_token\": \"${{ secrets.JOBBER_REFRESH_TOKEN }}\"
+            }")
+          ACCESS_TOKEN=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token',''))")
+          REFRESH_TOKEN=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('refresh_token',''))")
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+          echo "refresh_token=$REFRESH_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Fetch Jobber Data and Update Sheets
+        env:
+          ACCESS_TOKEN: ${{ steps.refresh.outputs.access_token }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          JOB_TRACKER_SHEET_ID: ${{ secrets.JOB_TRACKER_SHEET_ID }}
+          WC_SHEET_ID: ${{ secrets.WC_SHEET_ID }}
+        run: |
+          python3 << 'PYEOF'
+          import os, json, requests, datetime
+
+          ACCESS_TOKEN = os.environ['ACCESS_TOKEN']
+          GOOGLE_API_KEY = os.environ['GOOGLE_API_KEY']
+          JOB_TRACKER_SHEET_ID = os.environ['JOB_TRACKER_SHEET_ID']
+          WC_SHEET_ID = os.environ['WC_SHEET_ID']
+
+          JOBBER_API = "https://api.getjobber.com/api/graphql"
+          HEADERS = {
+            "Authorization": f"Bearer {ACCESS_TOKEN}",
+            "Content-Type": "application/json",
+            "X-JOBBER-GRAPHQL-VERSION": "2025-04-16"
+          }
+
+          # ── QUERY: Active Jobs with costs ─────────────────────────────
+          jobs_query = """
+          {
+            jobs(filter: { status: [ACTIVE] }, first: 50) {
+              nodes {
+                id
+                title
+                jobNumber
+                client { name }
+                total
+                createdAt
+                expenses(first: 50) {
+                  nodes {
+                    title
+                    total
+                    category
+                  }
+                }
+              }
+              totalCount
+            }
+          }
+          """
+
+          # ── QUERY: Invoices ────────────────────────────────────────────
+          invoices_query = """
+          {
+            invoices(first: 100) {
+              nodes {
+                id
+                invoiceNumber
+                subject
+                total
+                depositAmount
+                amountOwing
+                status
+                createdAt
+                dueDate
+                issuedDate
+                client { name }
+                job { jobNumber title }
+                payments {
+                  nodes {
+                    amount
+                    receivedAt
+                  }
+                }
+              }
+            }
+          }
+          """
+
+          # ── QUERY: Quotes converted to jobs this week ──────────────────
+          quotes_query = """
+          {
+            quotes(filter: { status: [CONVERTED] }, first: 50) {
+              nodes {
+                id
+                quoteNumber
+                total
+                convertedAt
+                client { name }
+              }
+            }
+          }
+          """
+
+          def jobber_query(query):
+            r = requests.post(JOBBER_API, headers=HEADERS, json={"query": query})
+            return r.json().get("data", {})
+
+          def sheets_write(sheet_id, range_name, values):
+            url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{range_name}:append?valueInputOption=USER_ENTERED&key={GOOGLE_API_KEY}"
+            r = requests.post(url, json={"values": values})
+            return r.status_code
+
+          def sheets_clear_and_write(sheet_id, range_name, values):
+            # Clear first
+            clear_url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{range_name}:clear?key={GOOGLE_API_KEY}"
+            requests.post(clear_url)
+            # Then write
+            write_url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{range_name}?valueInputOption=USER_ENTERED&key={GOOGLE_API_KEY}"
+            r = requests.put(write_url, json={"values": values, "range": range_name, "majorDimension": "ROWS"})
+            return r.status_code
+
+          today = datetime.date.today()
+          week_start = today - datetime.timedelta(days=today.weekday()+1) # Sunday
+          week_end = week_start + datetime.timedelta(days=6)              # Saturday
+          month_start = today.replace(day=1)
+
+          print("Fetching Jobber jobs...")
+          jobs_data = jobber_query(jobs_query)
+          jobs = jobs_data.get("jobs", {}).get("nodes", [])
+          print(f"Found {len(jobs)} active jobs")
+
+          print("Fetching Jobber invoices...")
+          invoices_data = jobber_query(invoices_query)
+          invoices = invoices_data.get("invoices", {}).get("nodes", [])
+          print(f"Found {len(invoices)} invoices")
+
+          print("Fetching converted quotes...")
+          quotes_data = jobber_query(quotes_query)
+          quotes = quotes_data.get("quotes", {}).get("nodes", [])
+          print(f"Found {len(quotes)} converted quotes")
+
+          # ── BUILD JOB TRACKER ROWS ─────────────────────────────────────
+          job_rows = []
+          for job in jobs:
+            expenses = job.get("expenses", {}).get("nodes", [])
+            sub_cost = sum(e["total"] for e in expenses if e.get("category") == "SUBCONTRACTOR")
+            mat_cost = sum(e["total"] for e in expenses if e.get("category") == "MATERIALS")
+            other_cost = sum(e["total"] for e in expenses if e.get("category") not in ["SUBCONTRACTOR", "MATERIALS"])
+            total_cost = sub_cost + mat_cost + other_cost
+            total_price = job.get("total") or 0
+            net_profit = total_price - total_cost
+
+            # Find matching invoice status
+            job_num = job.get("jobNumber", "")
+            job_invoices = [i for i in invoices if i.get("job") and str(i["job"].get("jobNumber","")) == str(job_num)]
+            invoice_status = job_invoices[0]["status"] if job_invoices else "N/A"
+            amount_owing = job_invoices[0]["amountOwing"] if job_invoices else 0
+            invoice_total = job_invoices[0]["total"] if job_invoices else total_price
+
+            job_rows.append([
+              job.get("jobNumber",""),
+              job.get("client",{}).get("name",""),
+              job.get("title",""),
+              "Active",
+              f"${invoice_total:.2f}",
+              f"${sub_cost:.2f}",
+              f"${mat_cost:.2f}",
+              f"${other_cost:.2f}",
+              f"${total_cost:.2f}",
+              f"${net_profit:.2f}",
+              invoice_status,
+              f"${amount_owing:.2f}",
+              str(today)
+            ])
+
+          # Write to Job Tracker sheet (starting at row 5)
+          if job_rows:
+            status = sheets_clear_and_write(JOB_TRACKER_SHEET_ID, "Job Tracker!A5:M54", job_rows)
+            print(f"Job Tracker updated: HTTP {status}")
+
+          # ── UPDATE WC TRACKER: Weekly Collections (paid invoices) ──────
+          # Find invoices paid this week
+          weekly_collections = 0
+          for inv in invoices:
+            payments = inv.get("payments", {}).get("nodes", [])
+            for pmt in payments:
+              paid_date_str = pmt.get("receivedAt","")[:10] if pmt.get("receivedAt") else ""
+              if paid_date_str:
+                paid_date = datetime.date.fromisoformat(paid_date_str)
+                if week_start <= paid_date <= week_end:
+                  weekly_collections += pmt.get("amount", 0)
+
+          # Find quotes converted to jobs this week (New Sales)
+          weekly_new_sales = 0
+          for q in quotes:
+            converted_str = (q.get("convertedAt") or "")[:10]
+            if converted_str:
+              converted_date = datetime.date.fromisoformat(converted_str)
+              if week_start <= converted_date <= week_end:
+                weekly_new_sales += q.get("total", 0)
+
+          print(f"This week collections: ${weekly_collections:.2f}")
+          print(f"This week new sales: ${weekly_new_sales:.2f}")
+
+          # Find which row in KBPI tab corresponds to this week
+          # Week end date in M/D format
+          week_end_str = f"{week_end.month}/{week_end.day}"
+          print(f"Looking for week ending: {week_end_str}")
+
+          # Read KBPI to find the right row
+          kbpi_url = f"https://sheets.googleapis.com/v4/spreadsheets/{WC_SHEET_ID}/values/Key Business Performance Indicators!A3:I60?key={GOOGLE_API_KEY}"
+          kbpi_resp = requests.get(kbpi_url)
+          kbpi_rows = kbpi_resp.json().get("values", [])
+
+          target_row = None
+          for i, row in enumerate(kbpi_rows):
+            if len(row) > 1 and row[1].strip() == week_end_str:
+              target_row = i + 3  # +3 because data starts at row 3
+              break
+
+          if target_row:
+            # Update Col C (New Sales) and Col D (Collections) for that row
+            range_c = f"Key Business Performance Indicators!C{target_row}"
+            range_d = f"Key Business Performance Indicators!D{target_row}"
+            url_base = f"https://sheets.googleapis.com/v4/spreadsheets/{WC_SHEET_ID}/values/"
+            
+            r1 = requests.put(f"{url_base}{range_c}?valueInputOption=USER_ENTERED&key={GOOGLE_API_KEY}",
+              json={"values": [[weekly_new_sales]], "range": range_c, "majorDimension": "ROWS"})
+            r2 = requests.put(f"{url_base}{range_d}?valueInputOption=USER_ENTERED&key={GOOGLE_API_KEY}",
+              json={"values": [[weekly_collections]], "range": range_d, "majorDimension": "ROWS"})
+            print(f"WC KBPI updated row {target_row}: New Sales HTTP {r1.status_code}, Collections HTTP {r2.status_code}")
+          else:
+            print(f"Warning: Could not find week ending {week_end_str} in KBPI tab")
+
+          print("Jobber sync complete!")
+          PYEOF
+
+      - name: Store New Refresh Token
+        if: steps.refresh.outputs.refresh_token != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            await github.rest.actions.createOrUpdateRepoSecret({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              secret_name: 'JOBBER_REFRESH_TOKEN',
+              encrypted_value: '${{ steps.refresh.outputs.refresh_token }}'
+            })
