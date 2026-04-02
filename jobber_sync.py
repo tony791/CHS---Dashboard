@@ -7,8 +7,8 @@ GOOGLE_API_KEY = os.environ['GOOGLE_API_KEY']
 JOB_TRACKER_SHEET_ID = os.environ['JOB_TRACKER_SHEET_ID']
 WC_SHEET_ID = os.environ['WC_SHEET_ID']
 
-JOB_TRACKER_SCRIPT = "https://script.google.com/macros/s/AKfycbzN2yakVRoBYdSa-F-UreDLzl8YctxvCt1vCAqPJEk8kGSIKD8ak-qkSRJwpjNCd_Gm/exec"
-WC_TRACKER_SCRIPT  = "https://script.google.com/macros/s/AKfycbwSatQFSlvP8GY0XXMRjgdN8esc5IJo4T4cTj1kwBShjJ_iRLOc3fnGZ-ezfGbNx5nU/exec"
+JOB_TRACKER_SCRIPT = "https://script.google.com/macros/s/AKfycbwSatQFSlvP8GY0XXMRjgdN8esc5IJo4T4cTj1kwBShjJ_iRLOc3fnGZ-ezfGbNx5nU/exec"
+WC_TRACKER_SCRIPT  = "https://script.google.com/macros/s/AKfycbzN2yakVRoBYdSa-F-UreDLzl8YctxvCt1vCAqPJEk8kGSIKD8ak-qkSRJwpjNCd_Gm/exec"
 
 JOBBER_API = "https://api.getjobber.com/api/graphql"
 
