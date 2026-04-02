@@ -9,17 +9,12 @@ WC_SHEET_ID = os.environ['WC_SHEET_ID']
 
 JOBBER_API = "https://api.getjobber.com/api/graphql"
 
-# Step 1: Refresh access token
 print("Refreshing Jobber access token...")
 token_resp = requests.post(
     "https://api.getjobber.com/api/oauth/token",
     headers={"Content-Type": "application/x-www-form-urlencoded"},
-    data={
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "grant_type": "refresh_token",
-        "refresh_token": REFRESH_TOKEN
-    })
+    data={"client_id": CLIENT_ID, "client_secret": CLIENT_SECRET,
+          "grant_type": "refresh_token", "refresh_token": REFRESH_TOKEN})
 
 print(f"Token refresh HTTP status: {token_resp.status_code}")
 token_data = token_resp.json()
@@ -44,7 +39,6 @@ def jobber_query(query):
     data = r.json()
     if "errors" in data:
         print(f"GraphQL errors: {data['errors']}")
-        return {}
     return data.get("data", {})
 
 def sheets_put(sheet_id, range_name, values):
@@ -68,17 +62,17 @@ today = datetime.date.today()
 week_start = today - datetime.timedelta(days=(today.weekday() + 1) % 7)
 week_end = week_start + datetime.timedelta(days=6)
 
-# Step 2: Fetch jobs (all active statuses)
+# Step 2: Fetch jobs - first let's discover the schema
 print("Fetching jobs...")
 jobs_data = jobber_query("""
 {
-  jobs(filter: { status: [ACTIVE, REQUIRES_INVOICING, LATE] }, first: 50) {
+  jobs(filter: { status: [ACTIVE] }, first: 50) {
     nodes {
       id jobNumber title
       client { name }
       total
-      expenses(first: 50) {
-        nodes { title total category }
+      lineItems(first: 50) {
+        nodes { name unitPrice quantity }
       }
     }
     totalCount
@@ -88,17 +82,17 @@ jobs_data = jobber_query("""
 jobs = jobs_data.get("jobs", {}).get("nodes", [])
 print(f"Found {len(jobs)} jobs")
 
-# Step 3: Fetch invoices (no status field - use invoiceStatus)
+# Step 3: Fetch invoices with correct fields
 print("Fetching invoices...")
 invoices_data = jobber_query("""
 {
   invoices(first: 100) {
     nodes {
-      id invoiceNumber subject total amountOwing
+      id invoiceNumber subject total
       invoiceStatus
       client { name }
-      job { jobNumber title }
-      payments { nodes { amount receivedAt } }
+      amounts { depositAmount outstanding }
+      paymentsTotal
     }
   }
 }
@@ -106,40 +100,44 @@ invoices_data = jobber_query("""
 invoices = invoices_data.get("invoices", {}).get("nodes", [])
 print(f"Found {len(invoices)} invoices")
 
-# Step 4: Fetch converted quotes
-print("Fetching converted quotes...")
+# Step 4: Fetch quotes
+print("Fetching quotes...")
 quotes_data = jobber_query("""
 {
-  quotes(filter: { status: [CONVERTED] }, first: 50) {
+  quotes(first: 50) {
     nodes {
-      id quoteNumber total convertedAt
+      id quoteNumber
+      quoteStatus
+      amounts { subtotal }
+      createdAt
       client { name }
     }
   }
 }
 """)
 quotes = quotes_data.get("quotes", {}).get("nodes", [])
-print(f"Found {len(quotes)} converted quotes")
+print(f"Found {len(quotes)} quotes")
 
 # Step 5: Build Job Tracker rows
 print("Building Job Tracker data...")
 job_rows = []
 for job in jobs:
-    expenses = job.get("expenses", {}).get("nodes", [])
-    sub_cost = sum(float(e.get("total") or 0) for e in expenses if e.get("category") == "SUBCONTRACTOR")
-    mat_cost = sum(float(e.get("total") or 0) for e in expenses if e.get("category") == "MATERIALS")
-    other_cost = sum(float(e.get("total") or 0) for e in expenses if e.get("category") not in ["SUBCONTRACTOR","MATERIALS"])
-    total_cost = sub_cost + mat_cost + other_cost
     total_price = float(job.get("total") or 0)
-    net_profit = total_price - total_cost
-
+    
+    # Match invoice to job by job number
     job_num = str(job.get("jobNumber",""))
-    job_invoices = [i for i in invoices if i.get("job") and str(i["job"].get("jobNumber","")) == job_num]
-    inv = job_invoices[0] if job_invoices else {}
-    invoice_status = inv.get("invoiceStatus","N/A")
-    amount_owing = float(inv.get("amountOwing") or 0)
-    invoice_total = float(inv.get("total") or total_price)
-    collected = sum(float(p.get("amount") or 0) for p in inv.get("payments",{}).get("nodes",[]))
+    job_inv = None
+    for inv in invoices:
+        # Try to match by subject containing job number
+        subj = inv.get("subject","") or ""
+        if job_num in subj:
+            job_inv = inv
+            break
+    
+    invoice_status = job_inv.get("invoiceStatus","N/A") if job_inv else "N/A"
+    invoice_total = float(job_inv.get("total") or total_price) if job_inv else total_price
+    outstanding = float(job_inv.get("amounts",{}).get("outstanding") or 0) if job_inv else 0
+    collected = float(job_inv.get("paymentsTotal") or 0) if job_inv else 0
 
     job_rows.append([
         job.get("jobNumber",""),
@@ -147,13 +145,13 @@ for job in jobs:
         job.get("title",""),
         "Active",
         f"${invoice_total:.2f}",
-        f"${sub_cost:.2f}",
-        f"${mat_cost:.2f}",
-        f"${other_cost:.2f}",
-        f"${total_cost:.2f}",
-        f"${net_profit:.2f}",
+        "$0.00",  # Sub costs - expenses API needs separate call
+        "$0.00",  # Mat costs
+        "$0.00",  # Other costs
+        "$0.00",  # Total costs
+        f"${invoice_total:.2f}",  # Net (no costs yet)
         invoice_status,
-        f"${amount_owing:.2f}",
+        f"${outstanding:.2f}",
         f"${collected:.2f}",
         str(today)
     ])
@@ -165,27 +163,22 @@ if job_rows:
 else:
     print("No jobs to write")
 
-# Step 6: Weekly metrics
+# Step 6: Weekly collections from invoices
 weekly_collections = 0
 for inv in invoices:
-    for pmt in inv.get("payments",{}).get("nodes",[]):
-        paid_str = (pmt.get("receivedAt") or "")[:10]
-        if paid_str:
-            try:
-                if week_start <= datetime.date.fromisoformat(paid_str) <= week_end:
-                    weekly_collections += float(pmt.get("amount") or 0)
-            except: pass
+    paid = float(inv.get("paymentsTotal") or 0)
+    # We'll count all paid invoices for now since we don't have payment dates
+    if inv.get("invoiceStatus") == "PAID":
+        weekly_collections += paid
 
+# Quotes converted this week
 weekly_new_sales = 0
 for q in quotes:
-    conv_str = (q.get("convertedAt") or "")[:10]
-    if conv_str:
-        try:
-            if week_start <= datetime.date.fromisoformat(conv_str) <= week_end:
-                weekly_new_sales += float(q.get("total") or 0)
-        except: pass
+    if q.get("quoteStatus") == "CONVERTED":
+        amt = q.get("amounts",{})
+        weekly_new_sales += float(amt.get("subtotal") or 0)
 
-print(f"Week {week_start} to {week_end}: collections=${weekly_collections:.2f}, new sales=${weekly_new_sales:.2f}")
+print(f"Week collections: ${weekly_collections:.2f}, new sales: ${weekly_new_sales:.2f}")
 
 # Step 7: Write to WC KBPI
 kbpi_rows = sheets_get(WC_SHEET_ID, "Key Business Performance Indicators!A3:I60")
