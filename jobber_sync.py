@@ -45,32 +45,42 @@ def jobber_query(query):
         print(f"GraphQL errors: {data['errors']}")
     return data.get("data", {})
 
-def script_write(script_url, tab, range_name, values, clear=False, clear_range=None):
-    payload = {"tab": tab, "range": range_name, "values": values}
-    if clear and clear_range:
-        payload["clear"] = True
-        payload["clearRange"] = clear_range
-    r = requests.post(script_url, json=payload, allow_redirects=True, timeout=30)
-    print(f"Script write response: {r.status_code} {r.text[:200]}")
-    return r.status_code
+def script_get(script_url, payload):
+    try:
+        r = requests.get(script_url,
+            params={"payload": json.dumps(payload)},
+            timeout=30)
+        return r.text[:200]
+    except Exception as ex:
+        return f"Error: {ex}"
 
-def script_write_batched(script_url, tab, start_row, values, clear=False, clear_range=None):
-    # Clear first if needed
-    if clear and clear_range:
-        payload = {"tab": tab, "range": clear_range, "values": [[""] * len(values[0])], "clear": True, "clearRange": clear_range}
-        requests.post(script_url, json=payload, allow_redirects=True, timeout=30)
-    # Write in batches of 10
-    batch_size = 10
-    for i in range(0, len(values), batch_size):
-        batch = values[i:i+batch_size]
-        row = start_row + i
-        col_end = chr(ord('A') + len(batch[0]) - 1)
-        range_name = f"{row}:{row + len(batch) - 1}"
-        full_range = f"A{row}:{col_end}{row + len(batch) - 1}"
-        payload = {"tab": tab, "range": full_range, "values": batch}
-        r = requests.post(script_url, json=payload, allow_redirects=True, timeout=30)
-        print(f"Batch {i//batch_size + 1}: HTTP {r.status_code} {r.text[:100]}")
-    return 200
+def script_write_rows(script_url, tab, start_row, values, clear_end_row=54):
+    # First clear the range
+    clear_payload = {
+        "tab": tab,
+        "range": f"A{start_row}:R{clear_end_row}",
+        "values": [],
+        "clear": True,
+        "clearRange": f"A{start_row}:R{clear_end_row}"
+    }
+    resp = script_get(script_url, clear_payload)
+    print(f"Clear response: {resp}")
+
+    # Write each row individually
+    success = 0
+    for i, row in enumerate(values):
+        row_num = start_row + i
+        payload = {
+            "tab": tab,
+            "range": f"A{row_num}:R{row_num}",
+            "values": [row]
+        }
+        resp = script_get(script_url, payload)
+        if '"ok"' in resp:
+            success += 1
+        elif i < 2 or i == len(values)-1:
+            print(f"Row {row_num}: {resp}")
+    print(f"Wrote {success}/{len(values)} rows successfully")
 
 def sheets_get(sheet_id, range_name):
     encoded = requests.utils.quote(range_name, safe='')
@@ -82,18 +92,26 @@ today = datetime.date.today()
 week_start = today - datetime.timedelta(days=(today.weekday() + 1) % 7)
 week_end = week_start + datetime.timedelta(days=6)
 
-# Step 2: Fetch all jobs
+# Step 2: Fetch jobs with property address and contact info
 print("Fetching jobs...")
 jobs_data = jobber_query("""
 {
   jobs(first: 50) {
     nodes {
       id jobNumber title createdAt
-      client { name }
-      total
-      lineItems(first: 50) {
-        nodes { name unitPrice quantity }
+      client { 
+        name 
+        phones { number }
+        emails { address }
       }
+      property {
+        address {
+          street
+          city
+          province
+        }
+      }
+      total
     }
     totalCount
   }
@@ -139,14 +157,33 @@ quotes_data = jobber_query("""
 quotes = quotes_data.get("quotes", {}).get("nodes", [])
 print(f"Found {len(quotes)} quotes")
 
-# Step 5: Build Job Tracker rows
+# Step 5: Build Job Tracker rows matching exact column layout:
+# A: Job#  B: Customer Name  C: Address  D: Phone  E: Email
+# F: Sub Cost  G: Materials  H: Other Expenses  I: Total Costs
+# J: Markup(x0.70)  K: Job Total  L: Status  M: Quote Given
+# N: Quote Approved  O: Pymt Scheduled  P: Pymt Collected
+# Q: Lead Source  R: Notes
+
 print("Building Job Tracker data...")
 job_rows = []
 for job in jobs:
     total_price = float(job.get("total") or 0)
     job_num = str(job.get("jobNumber",""))
 
-    # Match invoice by subject
+    # Get address
+    prop = job.get("property") or {}
+    addr = prop.get("address") or {}
+    street = addr.get("street","")
+    city = addr.get("city","")
+    address = f"{street}, {city}".strip(", ") if street or city else ""
+
+    # Get phone and email
+    phones = job.get("client",{}).get("phones",[]) or []
+    emails = job.get("client",{}).get("emails",[]) or []
+    phone = phones[0].get("number","") if phones else ""
+    email = emails[0].get("address","") if emails else ""
+
+    # Match invoice by job number in subject
     job_inv = None
     for inv in invoices:
         subj = inv.get("subject","") or ""
@@ -157,29 +194,40 @@ for job in jobs:
     invoice_status = job_inv.get("invoiceStatus","N/A") if job_inv else "N/A"
     invoice_total = float(job_inv.get("total") or total_price) if job_inv else total_price
     payments_total = float(job_inv.get("paymentsTotal") or 0) if job_inv else 0
-    outstanding = invoice_total - payments_total
+    deposit = float((job_inv.get("amounts") or {}).get("depositAmount") or 0) if job_inv else 0
+
+    # Costs (will be $0 until expenses API is added)
+    sub_cost = 0
+    mat_cost = 0
+    other_cost = 0
+    total_cost = sub_cost + mat_cost + other_cost
+    markup = invoice_total * 0.70
+    net = invoice_total - total_cost
 
     job_rows.append([
-        job.get("jobNumber",""),
-        job.get("client",{}).get("name",""),
-        job.get("title",""),
-        "Active",
-        f"${invoice_total:.2f}",
-        "$0.00",
-        "$0.00",
-        "$0.00",
-        "$0.00",
-        f"${invoice_total:.2f}",
-        invoice_status,
-        f"${outstanding:.2f}",
-        f"${payments_total:.2f}",
-        str(today)
+        job_num,           # A: Job #
+        job.get("client",{}).get("name",""),  # B: Customer Name
+        address,           # C: Address
+        phone,             # D: Phone
+        email,             # E: Email
+        f"${sub_cost:.2f}",   # F: Sub Cost
+        f"${mat_cost:.2f}",   # G: Materials
+        f"${other_cost:.2f}", # H: Other Expenses
+        f"${total_cost:.2f}", # I: Total Costs
+        f"${markup:.2f}",     # J: Markup
+        f"${invoice_total:.2f}", # K: Job Total
+        invoice_status,    # L: Status
+        "",                # M: Quote Given
+        "",                # N: Quote Approved
+        f"${deposit:.2f}", # O: Pymt Scheduled
+        f"${payments_total:.2f}", # P: Pymt Collected
+        "Jobber",          # Q: Lead Source
+        ""                 # R: Notes
     ])
 
 if job_rows:
     print(f"Writing {len(job_rows)} jobs to Job Tracker...")
-    script_write_batched(JOB_TRACKER_SCRIPT, "Job Tracker", 5, job_rows,
-                 clear=True, clear_range="A5:N54")
+    script_write_rows(JOB_TRACKER_SCRIPT, "Job Tracker", 5, job_rows)
 else:
     print("No jobs to write")
 
@@ -206,10 +254,13 @@ for i, row in enumerate(kbpi_rows):
         break
 
 if target_row:
-    print(f"Writing to KBPI row {target_row}...")
-    script_write(WC_TRACKER_SCRIPT, "Key Business Performance Indicators",
-                 f"C{target_row}:D{target_row}",
-                 [[weekly_new_sales, weekly_collections]])
+    payload = {
+        "tab": "Key Business Performance Indicators",
+        "range": f"C{target_row}:D{target_row}",
+        "values": [[weekly_new_sales, weekly_collections]]
+    }
+    resp = script_get(WC_TRACKER_SCRIPT, payload)
+    print(f"KBPI row {target_row} updated: {resp}")
 else:
     print(f"Week ending {week_end_str} not found in KBPI tab")
 
