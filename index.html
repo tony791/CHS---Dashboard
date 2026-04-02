@@ -22,7 +22,7 @@ header{position:relative;z-index:10;background:linear-gradient(135deg,var(--burg
 #clk-d{font-size:11px;color:var(--muted);text-align:right;}
 .rfb{background:rgba(240,165,0,.14);border:1px solid rgba(240,165,0,.4);color:var(--gold);padding:7px 14px;border-radius:8px;cursor:pointer;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;transition:all .2s;}
 .rfb:hover{background:rgba(240,165,0,.28);}
-@keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
 .cnb{background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.25);color:var(--gold);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
 .cnb:hover{background:rgba(240,165,0,.25);}
 
@@ -325,18 +325,8 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
             <span style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;color:var(--gold);">📊 BUSINESS PULSE</span>
             <span id="wc-updated" style="font-size:9px;display:flex;align-items:center;gap:4px;color:var(--muted);"><span style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;"></span>Live</span>
           </div>
-          <div style="display:flex;gap:6px;">
-            <a id="tr1-lnk" href="#" target="_blank" style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(240,165,0,.1);color:var(--gold);border:1px solid rgba(240,165,0,.2);text-decoration:none;">Job Tracker ↗</a>
-            <a id="tr2-lnk" href="#" target="_blank" style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(240,165,0,.1);color:var(--gold);border:1px solid rgba(240,165,0,.2);text-decoration:none;">WC Tracker ↗</a>
-          </div>
         </div>
-        <!-- TICKER STRIP -->
-        <div style="overflow:hidden;position:relative;background:rgba(0,0,0,.2);padding:6px 0;max-width:100%;">
-          <div id="ticker-track" style="display:inline-flex;gap:0;white-space:nowrap;animation:ticker 30s linear infinite;min-width:200%;">
-            <div class="ticker-inner" id="ticker-inner"></div>
-            <div class="ticker-inner" id="ticker-inner2"></div>
-          </div>
-        </div>
+
         <!-- MINI KPI GRID -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(240,165,0,.08);">
           <div style="background:var(--card);padding:8px 10px;text-align:center;">
@@ -344,32 +334,32 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
             <div id="wc-mo-income" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--green);">--</div>
           </div>
           <div style="background:var(--card);padding:8px 10px;text-align:center;">
-            <div style="font-size:8px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">This Month Profit</div>
-            <div id="wc-mo-profit" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);">--</div>
-          </div>
-          <div style="background:var(--card);padding:8px 10px;text-align:center;">
             <div style="font-size:8px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">YTD Income</div>
             <div id="wc-ytd-income" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--green);">--</div>
-          </div>
-          <div style="background:var(--card);padding:8px 10px;text-align:center;">
-            <div style="font-size:8px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">YTD Profit</div>
-            <span id="wc-wk-sales" style="display:none;">--</span><span id="wc-wk-leads" style="display:none;">--</span><div id="wc-ytd-profit" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);">--</div>
           </div>
           <div style="background:var(--card);padding:8px 10px;text-align:center;">
             <div style="font-size:8px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">Wk Collections</div>
             <div id="wc-wk-coll" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);">--</div>
           </div>
           <div style="background:var(--card);padding:8px 10px;text-align:center;">
+            <div style="font-size:8px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">This Month Profit</div>
+            <div id="wc-mo-profit" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);">--</div>
+          </div>
+          <div style="background:var(--card);padding:8px 10px;text-align:center;">
+            <div style="font-size:8px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">YTD Profit</div>
+            <span id="wc-wk-sales" style="display:none;">--</span><span id="wc-wk-leads" style="display:none;">--</span><span id="ticker-inner" style="display:none;"></span><span id="ticker-inner2" style="display:none;"></span><div id="wc-ytd-profit" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);">--</div>
+          </div>
+          <div style="background:var(--card);padding:8px 10px;text-align:center;">
             <div style="font-size:8px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">Close Rate</div>
             <div id="wc-wk-close" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--blue);">--</div>
           </div>
         </div>
-        <!-- Hidden inputs for tracker URLs -->
-        <div style="padding:6px 10px;border-top:1px solid rgba(255,255,255,.04);display:flex;gap:6px;">
-          <input class="tui" id="tr1-url" placeholder="Job Tracker link..." oninput="updTr(1,this.value)" style="flex:1;font-size:10px;">
-          <button class="lkb" id="tr1-lk" onclick="togLock(1)" style="font-size:11px;">🔓</button>
-          <input class="tui" id="tr2-url" placeholder="WC Tracker link..." oninput="updTr(2,this.value)" style="flex:1;font-size:10px;">
-          <button class="lkb" id="tr2-lk" onclick="togLock(2)" style="font-size:11px;">🔓</button>
+        <!-- Tracker links -->
+        <div style="padding:8px 10px;border-top:1px solid rgba(255,255,255,.04);display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:stretch;">
+          <a id="tr1-lnk" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.4);border-radius:6px;padding:7px 10px;text-decoration:none;color:var(--gold);font-size:11px;font-weight:700;transition:all .2s;white-space:nowrap;">📋 Job Cost Tracker</a>
+          <div class="tur" style="margin:0;display:flex;align-items:stretch;"><input class="tui" id="tr1-url" placeholder="Paste link..." oninput="updTr(1,this.value)" style="height:100%;box-sizing:border-box;"><button class="lkb" id="tr1-lk" onclick="togLock(1)">🔓</button></div>
+          <a id="tr2-lnk" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.4);border-radius:6px;padding:7px 10px;text-decoration:none;color:var(--gold);font-size:11px;font-weight:700;transition:all .2s;white-space:nowrap;">💰 WC Tracker</a>
+          <div class="tur" style="margin:0;display:flex;align-items:stretch;"><input class="tui" id="tr2-url" placeholder="Paste link..." oninput="updTr(2,this.value)" style="height:100%;box-sizing:border-box;"><button class="lkb" id="tr2-lk" onclick="togLock(2)">🔓</button></div>
         </div>
       </div>
 
@@ -1704,7 +1694,7 @@ function fetchWCData(){
 
       var now=new Date();
       var badge=document.getElementById('wc-updated');
-      if(badge)badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>'+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});setTimeout(buildTicker,100);
+      if(badge)badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>'+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
     }).catch(function(){
       var badge=document.getElementById('wc-updated');
       if(badge)badge.textContent='Offline';
