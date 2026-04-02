@@ -273,21 +273,19 @@ for job in jobs:
     # Visits - check job status instead to avoid throttling
     has_visits = job_status_raw.lower() in ["active", "in_progress", "requires_invoicing"]
 
-    # Map job status
+    # Map Jobber status to spreadsheet dropdown options exactly
     if inv_status == "PAID":
-        status = "Paid"
-    elif inv_status in ["SENT","VIEWED","PAST_DUE"]:
+        status = "Completed"
+    elif inv_status in ["SENT", "VIEWED", "PAST_DUE"]:
         status = "Awaiting Payment"
     elif job_status_raw.lower() in ["requires_invoicing"]:
-        status = "Awaiting Invoice"
-    elif job_status_raw.lower() in ["completed"]:
+        status = "Awaiting Payment"
+    elif job_status_raw.lower() in ["completed", "archived"]:
         status = "Completed"
-    elif job_status_raw.lower() in ["archived"]:
-        status = "Archived"
     elif has_visits:
         status = "In Progress"
     else:
-        status = "Awaiting Scheduled"
+        status = "Need to Schedule"
 
     # Quote data - match by client name
     client_name = job.get("client",{}).get("name","")
