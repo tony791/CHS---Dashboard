@@ -48,7 +48,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1900px;margin:
 .ke{font-size:9px;color:rgba(255,255,255,.18);position:absolute;top:7px;right:8px;}.ke:hover{color:var(--gold);}
 
 /* 3-COL GRID */
-.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:stretch;}
+.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:start;}
 
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:13px;backdrop-filter:blur(8px);overflow:hidden;}
@@ -79,13 +79,13 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1900px;margin:
 .evmore{font-size:9px;color:var(--muted);}
 
 /* ══ KANBAN ══ */
-.kanban-wrap{overflow-x:auto;padding-bottom:6px;height:100%;display:flex;flex-direction:column;}
-.kanban-board{display:flex;gap:10px;min-width:max-content;padding:2px 0 4px;align-items:stretch;height:100%;}
+.kanban-wrap{overflow-x:auto;padding-bottom:6px;}
+.kanban-board{display:flex;gap:10px;min-width:max-content;padding:2px 0 4px;align-items:stretch;}
 .kb-col{width:175px;flex-shrink:0;display:flex;flex-direction:column;gap:0;}
 .kb-header{border-radius:9px 9px 0 0;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;}
 .kb-title{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1.5px;color:var(--cream);}
 .kb-count{font-size:10px;font-weight:800;background:rgba(0,0,0,.3);padding:2px 7px;border-radius:20px;color:var(--cream);}
-.kb-body{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-top:none;border-radius:0 0 9px 9px;min-height:120px;flex:1;overflow-y:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;}
+.kb-body{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-top:none;border-radius:0 0 9px 9px;min-height:120px;height:350px;overflow-y:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;}
 .kb-body.drag-over{background:rgba(240,165,0,.08);border-color:rgba(240,165,0,.3);}
 
 /* Column accent colors */
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
   <div class="mgrid">
 
     <!-- LEFT: QUICK LAUNCH + TASKS -->
-    <div style="display:flex;flex-direction:column;gap:12px;height:100%;">
+    <div style="display:flex;flex-direction:column;gap:12px;">
       <div class="card">
         <div class="ch"><span class="ct">🚀 Quick Launch</span></div>
         <div class="cb">
@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     </div>
 
     <!-- CENTER: BUSINESS TRACKERS + CALENDAR + KANBAN -->
-    <div style="display:flex;flex-direction:column;gap:12px;height:100%;">
+    <div style="display:flex;flex-direction:column;gap:12px;">
       <div class="card" style="overflow:hidden;padding:0;">
         <!-- TICKER HEADER -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid rgba(240,165,0,.12);">
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
       </div>
 
       <!-- KANBAN LEAD PIPELINE -->
-      <div class="card" style="display:flex;flex-direction:column;min-height:450px;">
+      <div class="card" style="display:flex;flex-direction:column;">
         <div class="ch">
           <span class="ct">🎯 Lead Pipeline</span>
           <div style="display:flex;gap:7px;align-items:center;">
@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     </div>
 
     <!-- RIGHT: TASK MANAGER + BUSINESS TRACKERS -->
-    <div style="display:flex;flex-direction:column;gap:12px;height:100%;">
+    <div style="display:flex;flex-direction:column;gap:12px;">
       <!-- TASK MANAGER -->
       <div class="card">
         <div class="ch">
@@ -570,7 +570,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
       </div>
 
       <!-- GOOGLE MAPS -->
-      <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:200px;">
+      <div class="card" style="display:flex;flex-direction:column;">
         <div class="ch">
           <span class="ct">🗺️ Local Map</span>
           <a href="https://www.google.com/maps/search/@34.7695,-92.2671,13z" target="_blank" class="bdg">Open Maps ↗</a>
@@ -578,7 +578,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
         <div class="cb" style="padding:0;flex:1;min-height:200px;">
           <iframe
             src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d24000!2d-92.2671!3d34.7695!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sus!4v1"
-            style="width:100%;height:100%;min-height:250px;border:0;border-radius:0 0 13px 13px;display:block;filter:invert(1) hue-rotate(175deg) saturate(0.6) brightness(0.85);"
+            style="width:100%;height:300px;border:0;border-radius:0 0 13px 13px;display:block;filter:invert(1) hue-rotate(175deg) saturate(0.6) brightness(0.85);"
             allowfullscreen=""
             loading="lazy"
             referrerpolicy="no-referrer-when-downgrade">
