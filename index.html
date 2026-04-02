@@ -998,14 +998,16 @@ function priLbl(p){return p==='high'?'🔴 High':p==='med'?'🟠 Medium':p==='lo
 
 function renderTasks(){
   var list=document.getElementById('task-list'),filtered=getFiltered();
+  // Hide completed tasks from view
+  filtered=filtered.filter(function(t){return !t.done;});
   if(!filtered.length){list.innerHTML='<div class="empty">No tasks'+(tFilter!=='all'?' matching this filter':'')+'</div>';renderStats();return;}
   list.innerHTML=filtered.map(function(t){
     var i=tasks.indexOf(t);
     var due=getDue(t.due,t.time);
     var pl=priLbl(t.pri);var pc=priCls(t.pri);
     var syncDot=t.gTasksId?'<span title="Synced to Google Tasks" style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-left:2px;"></span>':'';
-    return'<div class="titem'+(t.done?' done':'')+'">'+
-      '<input type="checkbox" class="tchk"'+(t.done?' checked':'')+' onchange="togTask('+i+')">'+
+    return'<div class="titem">'+
+      '<input type="checkbox" class="tchk" onchange="togTask('+i+')">'+
       '<div class="tbody">'+
         '<div class="ttxt">'+t.title+syncDot+'</div>'+
         '<div class="tmeta">'+
@@ -1464,15 +1466,26 @@ function deleteMeeting(id){
 
 function renderMeetings(){
   var list=document.getElementById('meet-list');
-  var today=new Date().toISOString().split('T')[0];
-  var sorted=meetings.slice().sort(function(a,b){var ad=a.date||'9999',bd=b.date||'9999';return ad<bd?-1:ad>bd?1:0;});
-  if(!sorted.length){list.innerHTML='<div class="empty">No meetings saved yet</div>';return;}
+  var now=new Date();
+  var today=now.toISOString().split('T')[0];
+  var currentTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  // Filter out past meetings (past date, or today but time has passed)
+  var sorted=meetings.slice().filter(function(m){
+    if(!m.date) return true;
+    if(m.date > today) return true;
+    if(m.date === today){
+      // Keep if no time set, or time hasn't passed yet
+      if(!m.time) return true;
+      return m.time >= currentTime;
+    }
+    return false; // past date
+  }).sort(function(a,b){var ad=a.date||'9999',bd=b.date||'9999';return ad<bd?-1:ad>bd?1:0;});
+  if(!sorted.length){list.innerHTML='<div class="empty">No upcoming meetings</div>';return;}
   list.innerHTML=sorted.map(function(m){
-    var isPast=m.date&&m.date<today;
     var isToday=m.date&&m.date===today;
     var dateStr=m.date?new Date(m.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'No date';
     var timeStr=m.time?fmtTime(m.time):'';
-    var accent=isToday?'var(--gold)':isPast?'rgba(255,255,255,.2)':'var(--green)';
+    var accent=isToday?'var(--gold)':'var(--green)';
     var srcDot=m.source==='calendar'?'<span title="From Google Calendar" style="width:5px;height:5px;border-radius:50%;background:var(--blue);display:inline-block;margin-left:3px;"></span>':'';
     return'<div style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.07);border-left:3px solid '+accent+';border-radius:8px;padding:9px 11px;">'+
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">'+
