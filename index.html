@@ -48,7 +48,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1900px;margin:
 .ke{font-size:9px;color:rgba(255,255,255,.18);position:absolute;top:7px;right:8px;}.ke:hover{color:var(--gold);}
 
 /* 3-COL GRID */
-.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:start;}
+.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:stretch;}
 
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:13px;backdrop-filter:blur(8px);overflow:hidden;}
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
   <div class="mgrid">
 
     <!-- LEFT: QUICK LAUNCH + TASKS -->
-    <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;flex-direction:column;gap:12px;height:100%;">
       <div class="card">
         <div class="ch"><span class="ct">🚀 Quick Launch</span></div>
         <div class="cb">
@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     </div>
 
     <!-- CENTER: BUSINESS TRACKERS + CALENDAR + KANBAN -->
-    <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;flex-direction:column;gap:12px;height:100%;">
       <div class="card" style="overflow:hidden;padding:0;">
         <!-- TICKER HEADER -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid rgba(240,165,0,.12);">
@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     </div>
 
     <!-- RIGHT: TASK MANAGER + BUSINESS TRACKERS -->
-    <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;flex-direction:column;gap:12px;height:100%;">
       <!-- TASK MANAGER -->
       <div class="card">
         <div class="ch">
@@ -570,7 +570,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
       </div>
 
       <!-- GOOGLE MAPS -->
-      <div class="card" style="flex:1;display:flex;flex-direction:column;">
+      <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:200px;">
         <div class="ch">
           <span class="ct">🗺️ Local Map</span>
           <a href="https://www.google.com/maps/search/@35.2784,-92.2671,13z" target="_blank" class="bdg">Open Maps ↗</a>
