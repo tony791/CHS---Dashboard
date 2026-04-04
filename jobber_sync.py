@@ -274,6 +274,9 @@ for job in jobs:
     else:
         status = "Need to Schedule"
 
+    # Debug
+    print(f"Job #{job_num}: quote_approved={quote_approved} deposit={deposit_date} final={final_payment_date} source={lead_source} inv_status={inv_status} num_pmts={len(payment_records)}")
+
     job_rows.append([
         job_num,                    # A: Job #
         client_name,               # B: Customer Name
