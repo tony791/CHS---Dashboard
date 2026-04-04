@@ -1720,8 +1720,8 @@ function fetchSheetKPIs(){
       // Revenue This Week (payment collected this week)
       if(pymtCollected&&pymtCollected>=weekStart&&pymtCollected<weekEnd)revenueWeek+=jobTotal;
 
-      // Unpaid Invoices (job total entered, no payment collected, not cancelled/empty)
-      if(jobTotal>0&&!pymtCollectedStr&&status&&status!=='Cancelled'&&status!=='Pending Estimate'&&status!=='Need to Schedule')unpaidInvoices+=jobTotal;
+      // Unpaid Invoices — only count jobs where invoice has been sent but not paid
+      if(jobTotal>0&&!pymtCollectedStr&&(status==='Awaiting Payment'))unpaidInvoices+=jobTotal;
 
       // Upcoming Payments Scheduled (scheduled date in future, not yet collected)
       if(pymtScheduledDate&&pymtScheduledDate>=today&&!pymtCollectedStr)pymtScheduled+=jobTotal;
@@ -1742,7 +1742,7 @@ function fetchSheetKPIs(){
     document.getElementById('kv-wr').textContent=fmt(revenueWeek);
     document.getElementById('kv-ui').textContent=fmt(unpaidInvoices);
     document.getElementById('kv-ps').textContent=fmt(pymtScheduled);
-    document.getElementById('kv-mp').textContent=fmt(monthlyProfit);
+    document.getElementById('kv-mp').textContent=fmt(monthlyCollected);
     // openLeads count stored internally (not displayed in KPI strip)
 
     // ── Also populate Business Pulse from Job Tracker data ──
@@ -1818,14 +1818,16 @@ function fetchWCData(){
       var moRow=rows[currentMonth]||[];
       var ytdRow=rows[12]||[];
 
-      document.getElementById('wc-mo-income').textContent=fmt(moRow[1])||'$0';
-      document.getElementById('wc-mo-profit').textContent=fmt(moRow[2])||'$0';
-      document.getElementById('wc-ytd-income').textContent=fmt(ytdRow[1])||'$0';
-      document.getElementById('wc-ytd-profit').textContent=fmt(ytdRow[2])||'$0';
+      // Only update from WC sheet if it has actual data (not empty/dashes)
+      function hasData(v){return v&&String(v).trim()&&String(v).trim()!=='-'&&String(v).trim()!=='--'&&String(v).trim()!=='$0';}
+      if(hasData(moRow[1]))document.getElementById('wc-mo-income').textContent=fmt(moRow[1]);
+      if(hasData(moRow[2]))document.getElementById('wc-mo-profit').textContent=fmt(moRow[2]);
+      if(hasData(ytdRow[1]))document.getElementById('wc-ytd-income').textContent=fmt(ytdRow[1]);
+      if(hasData(ytdRow[2]))document.getElementById('wc-ytd-profit').textContent=fmt(ytdRow[2]);
 
       // Also update Yearly Gross Revenue KPI card
       var ytdIncome=parseFloat(String(ytdRow[1]||'0').replace(/[$,]/g,''))||0;
-      document.getElementById('kv-ol').textContent=ytdIncome===0?'$0':'$'+ytdIncome.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+      if(ytdIncome>0)document.getElementById('kv-ol').textContent='$'+ytdIncome.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
     }).catch(function(){});
 
   // Fetch Key Business Performance Indicators (weekly sales data)
