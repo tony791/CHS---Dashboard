@@ -177,7 +177,7 @@ invoices_data = jobber_query("""
       id total invoiceStatus paymentsTotal
       issuedDate dueDate
       paymentRecords(first: 10) {
-        nodes { amount }
+        nodes { amount createdAt }
       }
     }
   }
@@ -290,32 +290,75 @@ if job_rows:
 else:
     print("No jobs to write")
 
-# ── Write YTD Revenue to Dashboard tab ───────────────────────
-ytd_profit = ytd_revenue - ytd_cost
-ytd_jobs   = len(jobs)
-print(f"YTD 2026: Revenue=${ytd_revenue:.2f}  Cost=${ytd_cost:.2f}  Profit={ytd_profit:.2f}  Jobs={ytd_jobs}")
+# ── Calculate revenue metrics from actual payment records ────
+month_start = today.replace(day=1)
+year_start  = today.replace(month=1, day=1)
 
-# Write to Dashboard!B2:E2
-# B2=YTD Revenue, C2=YTD Cost, D2=YTD Profit, E2=Job Count
+weekly_collections = 0.0
+monthly_collections = 0.0
+ytd_collections     = 0.0
+
+for inv in invoices:
+    for pmt in inv.get("paymentRecords", {}).get("nodes", []):
+        amt = float(pmt.get("amount") or 0)
+        raw_date = (pmt.get("createdAt") or "")[:10]
+        if not raw_date:
+            continue
+        try:
+            pmt_date = datetime.date.fromisoformat(raw_date)
+        except ValueError:
+            continue
+        if pmt_date >= year_start:
+            ytd_collections += amt
+        if pmt_date >= month_start:
+            monthly_collections += amt
+        if week_start <= pmt_date <= week_end:
+            weekly_collections += amt
+
+# Monthly profit = proportional share of YTD profit (best estimate from job data)
+# More precise: sum net profit of jobs whose payment landed this month
+monthly_cost = 0.0
+for job in jobs:
+    inv_nodes = job.get("invoices", {}).get("nodes", []) or []
+    if not inv_nodes:
+        continue
+    inv = inv_nodes[0]
+    inv_status = (inv.get("invoiceStatus") or "").upper()
+    if inv_status == "PAID":
+        due = (inv.get("dueDate") or "")[:10]
+        try:
+            if due and datetime.date.fromisoformat(due) >= month_start:
+                job_num = str(job.get("jobNumber", ""))
+                line_items = job.get("lineItems", {}).get("nodes", []) or []
+                sub_c = sum(float(li.get("unitCost") or 0) * float(li.get("quantity") or 1) for li in line_items)
+                mat_c = sum(float(e.get("total") or 0) for e in expenses_by_job.get(job_num, []))
+                monthly_cost += sub_c + mat_c
+        except ValueError:
+            pass
+
+monthly_profit = monthly_collections - monthly_cost
+ytd_profit_final = ytd_revenue - ytd_cost  # based on job totals vs costs
+
+print(f"Revenue metrics — YTD: ${ytd_collections:.2f} | Month: ${monthly_collections:.2f} | Week: ${weekly_collections:.2f}")
+print(f"Profit  metrics — YTD: ${ytd_profit_final:.2f} | Month: ${monthly_profit:.2f}")
+
+# ── Write all metrics to Dashboard!B2:F2 ─────────────────────
+# B2=YTD Revenue, C2=Monthly Revenue, D2=Weekly Collections
+# E2=YTD Profit,  F2=Monthly Profit,  G2=Job Count
 dashboard_payload = {
     "tab": "Dashboard",
-    "range": "B2:E2",
-    "values": [[round(ytd_revenue, 2), round(ytd_cost, 2), round(ytd_profit, 2), ytd_jobs]]
+    "range": "B2:G2",
+    "values": [[
+        round(ytd_collections or ytd_revenue, 2),
+        round(monthly_collections, 2),
+        round(weekly_collections, 2),
+        round(ytd_profit_final, 2),
+        round(monthly_profit, 2),
+        ytd_jobs
+    ]]
 }
 resp = script_get(JOB_TRACKER_SCRIPT, dashboard_payload)
 print(f"Dashboard tab write: {resp[:100]}")
-
-# ── Weekly metrics using paymentRecords ───────────────────────
-weekly_collections = 0
-for inv in invoices:
-    for pmt in inv.get("paymentRecords",{}).get("nodes",[]):
-        received = fmt_date(pmt.get("createdAt",""))
-        if received:
-            try:
-                d = datetime.date.fromisoformat(received)
-                if week_start <= d <= week_end:
-                    weekly_collections += float(pmt.get("amount") or 0)
-            except: pass
 
 weekly_new_sales = 0
 for job in jobs:
