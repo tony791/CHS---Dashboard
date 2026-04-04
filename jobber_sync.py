@@ -104,6 +104,10 @@ jobs_data = jobber_query("""
         name
         phones { number }
         emails { address }
+        customFields {
+          ... on CustomFieldText { label valueText }
+          ... on CustomFieldDropdown { label valueDropdown }
+        }
       }
       property {
         address { street city province postalCode }
@@ -210,15 +214,23 @@ for job in jobs:
     email = emails_list[0].get("address","") if emails_list else ""
 
     # Lead source from job source field
+    # Get Referred By from client custom fields
+    custom_fields = job.get("client",{}).get("customFields",[]) or []
+    referred_by = ""
+    for cf in custom_fields:
+        if cf.get("label","").lower() in ["referred by","referral","lead source"]:
+            referred_by = cf.get("valueText","") or cf.get("valueDropdown","") or ""
+            break
+    # Fall back to job source if no referral
     source_map = {
         "QUOTE_CONVERT": "Quote",
-        "GQL_API": "API/Import",
+        "GQL_API": "Jobber",
         "WEB_APP": "Web App",
         "CLIENT_HUB": "Client Hub",
         "MANUAL": "Manual",
     }
     raw_source = str(job.get("source") or "")
-    lead_source = source_map.get(raw_source, raw_source or "Jobber")
+    lead_source = referred_by or source_map.get(raw_source, raw_source or "Jobber")
 
     # Costs
     line_items = job.get("lineItems",{}).get("nodes",[]) or []
@@ -268,9 +280,6 @@ for job in jobs:
         status = "In Progress"
     else:
         status = "Need to Schedule"
-
-    # Debug
-    print(f"Job #{job_num}: quote_approved={quote_approved} deposit={deposit_date} final={final_payment_date} source={lead_source} inv_status={inv_status} num_pmts={len(payment_records)}")
 
     job_rows.append([
         job_num,                    # A: Job #
