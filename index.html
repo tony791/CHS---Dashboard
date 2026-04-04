@@ -501,7 +501,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
             <a href="https://tasks.google.com" target="_blank" class="bdg">Open Tasks ↗</a>
           </div>
         </div>
-        <div class="cb">
+        <div class="cb" style="display:flex;flex-direction:column;">
           <div class="tbar">
             <button class="tfbtn on" onclick="setFilter('all',this)">All</button>
             <button class="tfbtn" onclick="setFilter('today',this)">Today</button>
@@ -537,7 +537,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
             </div>
             <div class="tfact"><button class="tfcanc" onclick="closeTaskForm()">Cancel</button><button class="tfsave" onclick="saveTask()">Save Task</button></div>
           </div>
-          <div id="task-list" style="display:flex;flex-direction:column;gap:6px;height:350px;overflow-y:auto;padding-right:4px;"></div>
+          <div id="task-list" style="display:flex;flex-direction:column;gap:6px;min-height:200px;max-height:340px;overflow-y:auto;padding-right:4px;flex:1;"></div>
           <div class="tstat" id="task-stats"></div>
         </div>
       </div>
@@ -901,34 +901,30 @@ function fetchGoogleTasks(){
   .then(function(allTasks){
     if(!allTasks)return;
     var googleTasks=[].concat.apply([],allTasks);
-    // Merge Google Tasks into local tasks — avoid duplicates by gTasksId
-    var existingIds=tasks.map(function(t){return t.gTasksId;}).filter(Boolean);
-    var newTasks=googleTasks.filter(function(gt){return!existingIds.includes(gt.id);});
-    newTasks.forEach(function(gt){
-      // Parse due date
+    // Full replace of Google Tasks — keep manually created local tasks
+    var localOnly=tasks.filter(function(t){return !t.gTasksId;});
+    var googleTaskObjects=googleTasks.map(function(gt){
       var due='';
       if(gt.due){var d=new Date(gt.due);due=d.toISOString().split('T')[0];}
-      tasks.push({
+      // Check starred — Google Tasks API returns starred as boolean
+      var isStarred=gt.starred===true||gt.starred==='true';
+      // Also check if task was previously marked high priority
+      var existing=tasks.find(function(t){return t.gTasksId===gt.id;});
+      var pri=isStarred?'high':(existing?existing.pri:'');
+      return {
         title:gt.title||'Untitled',
         due:due,
         time:'',
-        pri:gt.starred===true||gt.starred==='true'?'high':(gt.notes&&gt.notes.includes('⭐')?'high':''),
-        cat:'',
+        pri:pri,
+        cat:existing?existing.cat:'',
         notes:gt.notes||'',
         done:gt.status==='completed',
         created:gt.updated||new Date().toISOString(),
         gTasksId:gt.id,
         gTasksList:gt._listId
-      });
+      };
     });
-    // Update existing tasks status from Google
-    googleTasks.forEach(function(gt){
-      var local=tasks.find(function(t){return t.gTasksId===gt.id;});
-      if(local){
-        local.done=gt.status==='completed';
-        if(gt.starred===true||gt.starred==='true') local.pri='high';
-      }
-    });
+    tasks=localOnly.concat(googleTaskObjects);
     saveTasks();
     renderTasks();
     // Update badge
@@ -1435,18 +1431,7 @@ function expandNote(el){
 var meetings=JSON.parse(localStorage.getItem('chs_meetings')||'[]');
 
 function saveMeeting(){
-  var title=document.getElementById('meet-title').value.trim();
-  var link=document.getElementById('meet-link').value.trim();
-  if(!title||!link){alert('Please enter a meeting name and link.');return;}
-  var meetId=link;
-  var match=link.match(/meet\.google\.com\/([a-z0-9\-]+)/i);
-  if(match)meetId=match[1];
-  var cleanLink='https://meet.google.com/'+meetId.replace(/^https?:\/\/meet\.google\.com\//,'');
-  meetings.unshift({id:'m'+Date.now(),title:title,date:document.getElementById('meet-date').value,time:document.getElementById('meet-time').value,link:cleanLink,meetId:meetId,source:'manual'});
-  localStorage.setItem('chs_meetings',JSON.stringify(meetings));
-  renderMeetings();
-  ['meet-title','meet-time','meet-link'].forEach(function(id){document.getElementById(id).value='';});
-  document.getElementById('meet-date').value=new Date().toISOString().split('T')[0];
+  // Manual meeting entry removed - meetings sync from Google Calendar
 }
 
 function deleteMeeting(id){
