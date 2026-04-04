@@ -1394,78 +1394,160 @@ function saveNoteOnly(){
   setTimeout(function(){badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>Saving to Sheets';},2000);
 }
 
-var SN_HEADERS=[['Date','Time','Category','Raw Note','AI Summary','Tags','Tasks Extracted','Task Count']];
-var SN_HEADERS_WRITTEN=false;
+// ── SMART NOTES SHEET SETUP ───────────────────────────────────
+// Category colour palette (light pastel backgrounds for data rows)
+var SN_CAT_COLORS={
+  'Job':         {red:.82, green:.91, blue:.98},   // sky blue
+  'Admin':       {red:.91, green:.84, blue:.98},   // soft purple
+  'Finance':     {red:.82, green:.96, blue:.87},   // mint green
+  'Follow Up':   {red:.99, green:.91, blue:.80},   // warm peach
+  'Marketing':   {red:.99, green:.84, blue:.92},   // light pink
+  'Meeting':     {red:.99, green:.96, blue:.80},   // pale gold
+  'Personal':    {red:.82, green:.96, blue:.96},   // teal
+  'General':     {red:.95, green:.95, blue:.95}    // light grey
+};
 
-async function ensureSmartNotesHeaders(){
-  if(SN_HEADERS_WRITTEN)return true;
-  if(!oauthToken){console.log('Smart Notes: OAuth needed for sheet setup');return false;}
-  var snAuth=sheetsAuth();
+// Called before every append — only runs once per session (or after recreate)
+var SN_SHEET_READY=false;
+async function ensureSmartNotesReady(){
+  if(SN_SHEET_READY)return true;
+  if(!oauthToken)return false;
+  // Lightweight check: does A1 say "Date"?
   try{
-    // Step 1: Get tab's numeric sheetId (needed for batchUpdate)
-    var metaResp=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'?fields=sheets.properties',{headers:snAuth.headers});
-    var metaData=await metaResp.json();
-    var tabId=null;
-    (metaData.sheets||[]).forEach(function(s){if(s.properties&&s.properties.title==='Smart Notes')tabId=s.properties.sheetId;});
-    if(tabId===null){console.log('Smart Notes tab not found — create a tab named exactly "Smart Notes".');return false;}
-
-    // Step 2: Read current A1 to decide what to do
-    var checkResp=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1')+snAuth.qs,{headers:snAuth.headers});
-    var checkData=await checkResp.json();
-    var a1=(((checkData.values||[[]])[0])||[])[0]||'';
-    var hasHeader=(a1==='Date'||a1==='date');
-
-    if(!hasHeader){
-      if(a1!==''){
-        // Data is in row 1 with no header — insert a blank row at top first
-        var insertReq={requests:[{insertDimension:{range:{sheetId:tabId,dimension:'ROWS',startIndex:0,endIndex:1},inheritFromBefore:false}}]};
-        await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+':batchUpdate',{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify(insertReq)});
-      }
-      // Write headers to (now-empty) row 1
-      await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1:H1')+'?valueInputOption=RAW',
-        {method:'PUT',headers:sheetsWriteHeaders(),body:JSON.stringify({values:SN_HEADERS,majorDimension:'ROWS'})});
-    }
-
-    // Step 3: Apply formatting (always — idempotent)
-    var fmtReq={requests:[
-      {repeatCell:{range:{sheetId:tabId,startRowIndex:0,endRowIndex:1},cell:{userEnteredFormat:{
-        backgroundColor:{red:.239,green:.047,blue:.122},
-        textFormat:{bold:true,foregroundColor:{red:.941,green:.647,blue:0},fontSize:10},
-        horizontalAlignment:'CENTER',verticalAlignment:'MIDDLE'
-      }},fields:'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'}},
-      {updateSheetProperties:{properties:{sheetId:tabId,gridProperties:{frozenRowCount:1}},fields:'gridProperties.frozenRowCount'}},
-      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'ROWS',startIndex:0,endIndex:1},properties:{pixelSize:28},fields:'pixelSize'}},
-      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:0,endIndex:1},properties:{pixelSize:90},fields:'pixelSize'}},
-      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:1,endIndex:2},properties:{pixelSize:70},fields:'pixelSize'}},
-      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:2,endIndex:3},properties:{pixelSize:90},fields:'pixelSize'}},
-      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:3,endIndex:4},properties:{pixelSize:300},fields:'pixelSize'}},
-      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:4,endIndex:5},properties:{pixelSize:240},fields:'pixelSize'}},
-      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:5,endIndex:6},properties:{pixelSize:140},fields:'pixelSize'}},
-      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:6,endIndex:7},properties:{pixelSize:200},fields:'pixelSize'}},
-      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:7,endIndex:8},properties:{pixelSize:80},fields:'pixelSize'}}
-    ]};
-    await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+':batchUpdate',{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify(fmtReq)});
-    console.log('Smart Notes sheet formatted ✓');
-    SN_HEADERS_WRITTEN=true;
-    return true;
-  }catch(e){console.log('Smart Notes setup error:',e);return false;}
+    var r=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1')+'?key='+API_KEY,{headers:sheetsWriteHeaders()});
+    var d=await r.json();
+    var a1=(((d.values||[[]])[0])||[])[0]||'';
+    if(a1==='Date'){SN_SHEET_READY=true;return true;}
+    // Not set up — run full recreate silently
+    return await recreateSmartNotesSheet(true);
+  }catch(e){return false;}
 }
 
-async function fixSmartNotesSheet(){
-  if(!oauthToken){alert('Connect Google first (OAuth needed to write formatting).');return;}
-  SN_HEADERS_WRITTEN=false; // Force re-run
+// Full sheet rebuild — reads existing data, wipes, rewrites with full formatting
+async function recreateSmartNotesSheet(silent){
+  if(!oauthToken){alert('Connect Google first.');return false;}
   var badge=document.getElementById('sn-sheet-badge');
-  if(badge)badge.innerHTML='<div class="spin" style="width:10px;height:10px;margin-right:4px;"></div>Fixing...';
-  var ok=await ensureSmartNotesHeaders();
-  if(badge){
-    if(ok){badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>Sheet fixed ✓';}
-    else{badge.innerHTML='<span style="color:#e05252;">⚠ Fix failed — check console</span>';}
-    setTimeout(function(){if(badge)badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>Saving to Sheets';},3000);
+  if(!silent&&badge)badge.innerHTML='<div class="spin" style="width:10px;height:10px;display:inline-block;margin-right:4px;"></div>Rebuilding sheet...';
+
+  try{
+    var base='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID;
+
+    // 1 ─ Get numeric tab ID
+    var metaR=await fetch(base+'?fields=sheets.properties',{headers:sheetsWriteHeaders()});
+    var metaD=await metaR.json();
+    var tabId=null;
+    (metaD.sheets||[]).forEach(function(s){if(s.properties&&s.properties.title==='Smart Notes')tabId=s.properties.sheetId;});
+    if(tabId===null){
+      if(!silent)alert('Tab "Smart Notes" not found. Create it in your Job Tracker sheet first.');
+      return false;
+    }
+
+    // 2 ─ Read all existing data (skip any existing header row)
+    var dataR=await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A1:H500')+'?key='+API_KEY,{headers:sheetsWriteHeaders()});
+    var dataD=await dataR.json();
+    var allRows=(dataD.values||[]);
+    // Strip any header rows (where A = "Date")
+    var dataRows=allRows.filter(function(r){return r[0]&&r[0]!=='Date'&&r[0]!=='date';});
+
+    // 3 ─ Clear sheet
+    await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A:H')+':clear',{method:'POST',headers:sheetsWriteHeaders(),body:'{}'});
+
+    // 4 ─ Write header + data rows back
+    var writeValues=[['Date','Time','Category','Raw Note','AI Summary','Tags','Tasks Extracted','Task Count']].concat(dataRows);
+    await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A1:H'+(writeValues.length))+'?valueInputOption=RAW',
+      {method:'PUT',headers:sheetsWriteHeaders(),body:JSON.stringify({values:writeValues,majorDimension:'ROWS'})});
+
+    // 5 ─ Build batchUpdate: layout + header style + data row colours + wrapping
+    var requests=[];
+
+    // Freeze row 1
+    requests.push({updateSheetProperties:{properties:{sheetId:tabId,gridProperties:{frozenRowCount:1}},fields:'gridProperties.frozenRowCount'}});
+
+    // Header row style — burgundy bg, bold gold text, centred
+    requests.push({repeatCell:{
+      range:{sheetId:tabId,startRowIndex:0,endRowIndex:1},
+      cell:{userEnteredFormat:{
+        backgroundColor:{red:.239,green:.047,blue:.122},
+        textFormat:{bold:true,fontSize:10,foregroundColor:{red:.941,green:.647,blue:0}},
+        horizontalAlignment:'CENTER',verticalAlignment:'MIDDLE'
+      }},
+      fields:'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+    }});
+
+    // Header row height
+    requests.push({updateDimensionProperties:{range:{sheetId:tabId,dimension:'ROWS',startIndex:0,endIndex:1},properties:{pixelSize:30},fields:'pixelSize'}});
+
+    // Column widths: Date, Time, Category, Raw Note, AI Summary, Tags, Tasks Extracted, Count
+    [90,72,100,310,250,150,210,68].forEach(function(w,i){
+      requests.push({updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:i,endIndex:i+1},properties:{pixelSize:w},fields:'pixelSize'}});
+    });
+
+    // Wrap text in Raw Note (col D=3) and AI Summary (col E=4)
+    requests.push({repeatCell:{
+      range:{sheetId:tabId,startRowIndex:1,startColumnIndex:3,endColumnIndex:5},
+      cell:{userEnteredFormat:{wrapStrategy:'WRAP'}},
+      fields:'userEnteredFormat.wrapStrategy'
+    }});
+
+    // Data row height for wrapped columns
+    if(dataRows.length>0){
+      requests.push({updateDimensionProperties:{range:{sheetId:tabId,dimension:'ROWS',startIndex:1,endIndex:dataRows.length+1},properties:{pixelSize:60},fields:'pixelSize'}});
+    }
+
+    // Conditional formatting — colour entire row by category (col C = index 2)
+    // Using CUSTOM_FORMULA so it highlights the whole row
+    var cfRules=Object.keys(SN_CAT_COLORS).map(function(cat,idx){
+      return{addConditionalFormatRule:{rule:{
+        ranges:[{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:8}],
+        booleanRule:{
+          condition:{type:'CUSTOM_FORMULA',values:[{userEnteredValue:'=$C2="'+cat+'"'}]},
+          format:{backgroundColor:SN_CAT_COLORS[cat]}
+        }
+      },index:idx}};
+    });
+    requests=requests.concat(cfRules);
+
+    // Alternating base colour for rows that don't match any category
+    requests.push({addConditionalFormatRule:{rule:{
+      ranges:[{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:8}],
+      booleanRule:{
+        condition:{type:'CUSTOM_FORMULA',values:[{userEnteredValue:'=ISEVEN(ROW())'}]},
+        format:{backgroundColor:{red:.13,green:.04,blue:.07}}
+      }
+    },index:Object.keys(SN_CAT_COLORS).length}});
+
+    // Thin bottom border on every data row
+    requests.push({repeatCell:{
+      range:{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:8},
+      cell:{userEnteredFormat:{borders:{bottom:{style:'SOLID',color:{red:.3,green:.1,blue:.15},width:1}}}},
+      fields:'userEnteredFormat.borders'
+    }});
+
+    await fetch(base+':batchUpdate',{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify({requests:requests})});
+
+    SN_SHEET_READY=true;
+    if(!silent&&badge){
+      badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>Sheet rebuilt ✓ ('+(dataRows.length)+' notes)';
+      setTimeout(function(){badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>Saving to Sheets';},4000);
+    }
+    console.log('Smart Notes sheet rebuilt: '+dataRows.length+' rows');
+    return true;
+
+  }catch(e){
+    console.error('Smart Notes rebuild error:',e);
+    if(!silent&&badge)badge.innerHTML='<span style="color:#e05252;">⚠ Rebuild failed — see console</span>';
+    return false;
   }
 }
 
+// Expose the "Fix Sheet" button action
+async function fixSmartNotesSheet(){
+  SN_SHEET_READY=false;
+  await recreateSmartNotesSheet(false);
+}
+
 async function appendToSmartNotesSheet(note){
-  await ensureSmartNotesHeaders();
+  await ensureSmartNotesReady();
   // Append the data row (always after headers)
   var row=[[note.date,note.time,note.category,note.rawNote,note.summary,note.tags,note.tasksExtracted,note.taskCount]];
   var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A:H')+':append?valueInputOption=RAW';
