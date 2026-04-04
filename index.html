@@ -1493,12 +1493,12 @@ async function recreateSmartNotesSheet(silent){
     });
     requests=requests.concat(cfRules);
 
-    // Alternating base colour for rows that don't match any category
+    // Alternating light grey stripe for even rows
     requests.push({addConditionalFormatRule:{rule:{
       ranges:[{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:8}],
       booleanRule:{
         condition:{type:'CUSTOM_FORMULA',values:[{userEnteredValue:'=ISEVEN(ROW())'}]},
-        format:{backgroundColor:{red:.13,green:.04,blue:.07}}
+        format:{backgroundColor:{red:.91,green:.91,blue:.91}}
       }
     },index:Object.keys(SN_CAT_COLORS).length}});
 
