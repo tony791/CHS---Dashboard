@@ -1695,8 +1695,19 @@ function fetchSheetKPIs(){
       var pymtCollectedStr=(row[15]||'').trim();
       var pymtScheduledStr=(row[14]||'').trim();
 
-      // Parse dates (MM/DD/YYYY)
-      function parseDate(s){if(!s)return null;var p=s.split('/');if(p.length!==3)return null;return new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1]));}
+      // Parse dates — handles both MM/DD/YYYY and YYYY-MM-DD formats
+      function parseDate(s){
+        if(!s)return null;
+        // ISO format: YYYY-MM-DD
+        if(s.match(/^\d{4}-\d{2}-\d{2}$/)){
+          var p=s.split('-');
+          return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+        }
+        // US format: MM/DD/YYYY
+        var p=s.split('/');
+        if(p.length===3)return new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1]));
+        return null;
+      }
       var pymtCollected=parseDate(pymtCollectedStr);
       var pymtScheduledDate=parseDate(pymtScheduledStr);
 
