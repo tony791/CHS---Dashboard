@@ -8,6 +8,7 @@
   <!-- v20260404150901 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Columbus Home Solutions — Command Center</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%233D0C1F'/><path d='M32 10 L54 28 L54 54 L10 54 L10 28 Z' fill='none' stroke='%23F0A500' stroke-width='3.5'/><path d='M32 10 L58 30' stroke='%23F0A500' stroke-width='3' stroke-linecap='round'/><path d='M32 10 L6 30' stroke='%23F0A500' stroke-width='3' stroke-linecap='round'/><rect x='24' y='36' width='16' height='18' rx='2' fill='%23F0A500'/></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--burg:#3D0C1F;--gold:#F0A500;--gold-lt:#FFB800;--orange:#C4391A;--orange-lt:#E8722A;--cream:#FFF8EC;--dark:#1A0508;--card:rgba(92,21,48,0.55);--bdr:rgba(240,165,0,0.22);--muted:rgba(255,248,236,0.55);--green:#52c07a;--red:#e05252;--blue:#5bc0eb;}
@@ -561,6 +562,29 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
           <!-- Saved meetings list -->
           <div id="meet-list" style="display:flex;flex-direction:column;gap:7px;height:280px;overflow-y:auto;padding-right:4px;">
             <div class="empty" id="meet-empty">No upcoming meetings</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMAIL SCANNER -->
+      <div class="card" id="email-scanner-card">
+        <div class="ch">
+          <span class="ct">📧 Email Scanner</span>
+          <div style="display:flex;gap:7px;align-items:center;">
+            <span id="email-scan-badge" style="font-size:9px;font-weight:700;background:rgba(255,255,255,.08);color:var(--muted);padding:3px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:4px;"><span id="email-scan-dot" style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.25);display:inline-block;"></span><span id="email-scan-txt">Connect Google to enable</span></span>
+            <button id="email-scan-btn" onclick="scanEmails()" style="font-size:10px;font-weight:700;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.3);color:var(--gold);padding:4px 11px;border-radius:20px;cursor:pointer;transition:all .2s;" disabled>🔍 Scan</button>
+          </div>
+        </div>
+        <div class="cb" style="padding:10px 14px;">
+          <!-- Filter row -->
+          <div style="display:flex;gap:5px;margin-bottom:9px;flex-wrap:wrap;">
+            <button class="tfbtn on" id="es-filter-unread" onclick="setEmailFilter('unread',this)">Unread</button>
+            <button class="tfbtn" id="es-filter-all" onclick="setEmailFilter('all',this)">Recent</button>
+            <button class="tfbtn" id="es-filter-leads" onclick="setEmailFilter('leads',this)">Leads</button>
+          </div>
+          <div id="email-scanner-loading" style="display:none;text-align:center;padding:16px 0;"><div class="spin" style="margin:0 auto 8px;"></div><div style="font-size:11px;color:var(--muted);">Scanning emails with AI...</div></div>
+          <div id="email-scanner-result" style="display:flex;align-items:center;justify-content:center;min-height:80px;">
+            <div class="empty">Connect Google &amp; click Scan to get AI action items</div>
           </div>
         </div>
       </div>
@@ -1369,21 +1393,52 @@ function saveNoteOnly(){
   setTimeout(function(){badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>Saving to Sheets';},2000);
 }
 
-async function appendToSmartNotesSheet(note){
-  // First ensure the Smart Notes sheet tab exists, then append
-  var snAuth=sheetsAuth();var checkUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1')+snAuth.qs;
+var SN_HEADERS=[['Date','Time','Category','Raw Note','AI Summary','Tags','Tasks Extracted','Task Count']];
+var SN_HEADERS_WRITTEN=false;
+
+async function ensureSmartNotesHeaders(){
+  if(SN_HEADERS_WRITTEN)return;
+  var snAuth=sheetsAuth();
+  var checkUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1:H1')+snAuth.qs;
   try{
     var check=await fetch(checkUrl,{headers:snAuth.headers});
     var checkData=await check.json();
-    if(checkData.error){
-      // Sheet tab doesn't exist — create it via batchUpdate (needs write access via service account)
-      // For now, log and skip — user needs to create the tab manually or via the instructions below
-      console.log('Smart Notes tab not found. Please create it in your Google Sheet.');
-      return;
+    if(checkData.error){console.log('Smart Notes tab not found. Create a tab named "Smart Notes" in your Job Tracker sheet.');return false;}
+    var existingVal=(checkData.values||[[]])[0][0]||'';
+    if(!existingVal||existingVal==='Date'){
+      // Write header row with bold formatting
+      var putUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1:H1')+'?valueInputOption=RAW';
+      await fetch(putUrl,{method:'PUT',headers:sheetsWriteHeaders(),body:JSON.stringify({values:SN_HEADERS,majorDimension:'ROWS'})});
+      // Apply bold + background to header via batchUpdate
+      var wh=sheetsWriteHeaders();
+      if(wh['Authorization']){
+        // Get sheet ID for Smart Notes tab
+        var metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'?fields=sheets.properties';
+        var meta=await fetch(metaUrl,{headers:snAuth.headers});
+        var metaData=await meta.json();
+        var tabId=null;
+        (metaData.sheets||[]).forEach(function(s){if(s.properties&&s.properties.title==='Smart Notes')tabId=s.properties.sheetId;});
+        if(tabId!==null){
+          var fmtReq={requests:[
+            {repeatCell:{range:{sheetId:tabId,startRowIndex:0,endRowIndex:1},cell:{userEnteredFormat:{backgroundColor:{red:.239,green:.047,blue:.122},textFormat:{bold:true,foregroundColor:{red:.941,green:.647,blue:0}},horizontalAlignment:'CENTER'}},fields:'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'}},
+            {updateSheetProperties:{properties:{sheetId:tabId,gridProperties:{frozenRowCount:1}},fields:'gridProperties.frozenRowCount'}},
+            {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:3,endIndex:4},properties:{pixelSize:280},fields:'pixelSize'}},
+            {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:4,endIndex:5},properties:{pixelSize:220},fields:'pixelSize'}}
+          ]};
+          await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+':batchUpdate',{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify(fmtReq)});
+        }
+      }
+      SN_HEADERS_WRITTEN=true;
+    }else{
+      SN_HEADERS_WRITTEN=true;
     }
-  }catch(e){}
+    return true;
+  }catch(e){console.log('Smart Notes header check error:',e);return false;}
+}
 
-  // Append the row using OAuth token
+async function appendToSmartNotesSheet(note){
+  await ensureSmartNotesHeaders();
+  // Append the data row (always after headers)
   var row=[[note.date,note.time,note.category,note.rawNote,note.summary,note.tags,note.tasksExtracted,note.taskCount]];
   var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A:H')+':append?valueInputOption=RAW';
   try{
@@ -1660,6 +1715,8 @@ function onOAuthConnected(){
   // Re-fetch all Google data with OAuth token
   fetchSheetKPIs();
   fetchWCData();
+  // Activate email scanner
+  emailScannerReady();
 }
 
 // Initialise on load
@@ -2120,7 +2177,156 @@ function buildTicker(){
   if(t2)t2.innerHTML=html;
 }
 
-function refreshAll(){fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}}
+// ── YTD FROM JOBBER (Dashboard tab) ──────────────────────────
+function fetchJobberYTD(){
+  var auth=sheetsAuth();
+  // jobber_sync.py writes: B2=YTD Revenue, C2=YTD Cost, D2=YTD Profit, E2=Job Count
+  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent('Dashboard!B2:E2')+auth.qs;
+  fetch(url,{headers:auth.headers})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var row=(d.values||[[]])[0]||[];
+      function fmtK(v){var n=parseFloat(String(v||'0').replace(/[$,]/g,''))||0;if(!n)return null;return'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+      var ytdRev=fmtK(row[0]),ytdProfit=fmtK(row[2]);
+      if(ytdRev){
+        document.getElementById('kv-ol').textContent=ytdRev;
+        document.getElementById('wc-ytd-income').textContent=ytdRev;
+      }
+      if(ytdProfit){
+        document.getElementById('wc-ytd-profit').textContent=ytdProfit;
+      }
+    }).catch(function(){});
+}
+// Run after KPI fetch so Jobber data wins if present
+setTimeout(fetchJobberYTD,3000);
+setInterval(fetchJobberYTD,10*60*1000);
+
+// ── EMAIL SCANNER ─────────────────────────────────────────────
+var emailFilterMode='unread';
+
+function setEmailFilter(mode,btn){
+  emailFilterMode=mode;
+  document.querySelectorAll('#email-scanner-card .tfbtn').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on');
+}
+
+function emailScannerReady(){
+  var btn=document.getElementById('email-scan-btn');
+  var dot=document.getElementById('email-scan-dot');
+  var txt=document.getElementById('email-scan-txt');
+  if(btn){btn.disabled=false;btn.style.opacity='1';}
+  if(dot){dot.style.background='var(--green)';}
+  if(txt){txt.textContent='Ready';}
+}
+
+// Called when OAuth connects — activate scanner
+var _origConnected=window.onGoogleConnected||function(){};
+window.onGoogleConnected=function(){_origConnected();emailScannerReady();};
+
+async function scanEmails(){
+  if(!oauthToken){alert('Please click "Connect Google" first.');return;}
+  var btn=document.getElementById('email-scan-btn');
+  var loading=document.getElementById('email-scanner-loading');
+  var result=document.getElementById('email-scanner-result');
+  btn.disabled=true;btn.textContent='⏳ Scanning...';
+  loading.style.display='block';
+  result.style.display='none';
+
+  try{
+    // Build query string based on filter
+    var qParam='';
+    if(emailFilterMode==='unread')qParam='q=is%3Aunread&labelIds=INBOX&maxResults=12';
+    else if(emailFilterMode==='leads')qParam='q=estimate+OR+quote+OR+service+OR+repair+OR+install&labelIds=INBOX&maxResults=15';
+    else qParam='labelIds=INBOX&maxResults=15';
+
+    var listResp=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?'+qParam,
+      {headers:{'Authorization':'Bearer '+oauthToken}});
+    var listData=await listResp.json();
+    var messages=listData.messages||[];
+
+    if(!messages.length){
+      loading.style.display='none';
+      result.style.display='flex';
+      result.innerHTML='<div class="empty">No emails found for this filter</div>';
+      btn.disabled=false;btn.textContent='🔍 Scan';
+      return;
+    }
+
+    // Fetch metadata + snippet for each (parallel, cap at 12)
+    var toFetch=messages.slice(0,12);
+    var details=await Promise.all(toFetch.map(function(m){
+      return fetch(
+        'https://gmail.googleapis.com/gmail/v1/users/me/messages/'+m.id+'?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date',
+        {headers:{'Authorization':'Bearer '+oauthToken}}
+      ).then(function(r){return r.json();}).catch(function(){return null;});
+    }));
+
+    // Format emails for Claude
+    var emailText=details.filter(Boolean).map(function(e){
+      var hdrs=(e.payload||{}).headers||[];
+      function hdr(n){return(hdrs.find(function(h){return h.name===n;})||{}).value||'';}
+      return'From: '+hdr('From')+'\nSubject: '+hdr('Subject')+'\nDate: '+hdr('Date')+'\nPreview: '+(e.snippet||'').substring(0,200);
+    }).join('\n\n---\n\n');
+
+    // Send to Claude via proxy
+    var aiResp=await fetch('https://chs-claude-proxy.tony-bc5.workers.dev',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1200,
+        system:'You are a business assistant for Columbus Home Solutions, a home improvement contractor in North Little Rock, AR. Analyze these emails and return ONLY a JSON array, no other text:\n[\n  {\n    "priority":"high|med|low",\n    "type":"Lead|Invoice|Supplier|Admin|Schedule|Review|Spam|Other",\n    "from":"sender display name",\n    "subject":"email subject (truncated to 50 chars)",\n    "action":"specific action to take (1 sentence, imperative)",\n    "deadline":"ASAP|Today|This Week|No Rush"\n  }\n]\nPrioritize: Leads > Invoice issues > Scheduling. Mark Spam/promotions as low priority. Omit any emails with no action needed.',
+        messages:[{role:'user',content:'Unread emails to analyze:\n\n'+emailText}]
+      })
+    });
+    var aiData=await aiResp.json();
+    var raw=(aiData.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
+    var items=JSON.parse(raw.replace(/```json|```/g,'').trim());
+
+    loading.style.display='none';
+    result.style.display='block';
+
+    if(!items.length){
+      result.innerHTML='<div class="empty" style="padding:10px 0;">No action items found — inbox looks clear! ✓</div>';
+    }else{
+      var deadlineOrder={'ASAP':0,'Today':1,'This Week':2,'No Rush':3};
+      items.sort(function(a,b){
+        var pa=a.priority==='high'?0:a.priority==='med'?1:2;
+        var pb=b.priority==='high'?0:b.priority==='med'?1:2;
+        if(pa!==pb)return pa-pb;
+        return(deadlineOrder[a.deadline]||3)-(deadlineOrder[b.deadline]||3);
+      });
+      result.innerHTML='<div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">'+items.length+' Action Item'+(items.length!==1?'s':'')+'</div>'
+        +items.map(function(item){
+          var priColor=item.priority==='high'?'#e05252':item.priority==='med'?'var(--orange-lt)':'var(--green)';
+          var typeBg={'Lead':'rgba(82,192,122,.15)','Invoice':'rgba(240,165,0,.15)','Schedule':'rgba(91,192,235,.15)','Supplier':'rgba(160,90,200,.15)'}[item.type]||'rgba(255,255,255,.06)';
+          var typeClr={'Lead':'var(--green)','Invoice':'var(--gold)','Schedule':'var(--blue)','Supplier':'#a05ac8'}[item.type]||'var(--muted)';
+          var deadlineClr={'ASAP':'#e05252','Today':'var(--orange-lt)','This Week':'var(--muted)','No Rush':'rgba(255,255,255,.25)'}[item.deadline]||'var(--muted)';
+          return'<div style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-left:3px solid '+priColor+';border-radius:0 9px 9px 0;padding:9px 12px;margin-bottom:6px;">'
+            +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+              +'<span style="font-size:9px;font-weight:700;padding:1px 7px;border-radius:20px;background:'+typeBg+';color:'+typeClr+';">'+item.type+'</span>'
+              +'<span style="font-size:9px;color:'+deadlineClr+';margin-left:auto;font-weight:700;">'+item.deadline+'</span>'
+            +'</div>'
+            +'<div style="font-size:10px;color:var(--muted);margin-bottom:2px;">'+item.from+'</div>'
+            +'<div style="font-size:11px;font-weight:700;color:var(--cream);margin-bottom:5px;line-height:1.3;">'+item.subject+'</div>'
+            +'<div style="font-size:11px;color:var(--gold);display:flex;gap:5px;align-items:flex-start;">'
+              +'<span style="color:var(--muted);flex-shrink:0;">→</span>'
+              +'<span>'+item.action+'</span>'
+            +'</div>'
+            +'</div>';
+        }).join('');
+    }
+  }catch(e){
+    console.error('Email scan error:',e);
+    loading.style.display='none';
+    result.style.display='flex';
+    result.innerHTML='<div style="color:var(--red);font-size:12px;text-align:center;">Scan failed — check console for details</div>';
+  }finally{
+    btn.disabled=false;btn.textContent='🔍 Scan';
+  }
+}
+
+function refreshAll(){fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberYTD();if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}}
 </script>
 </body>
 </html>
