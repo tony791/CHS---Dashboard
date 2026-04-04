@@ -99,7 +99,7 @@ jobs_data = jobber_query("""
       id jobNumber title createdAt
       jobStatus
       startAt completedAt
-      source { name type }
+      source
       client {
         name
         phones { number }
@@ -123,7 +123,7 @@ jobs_data = jobber_query("""
         totalCount
       }
       paymentRecords(first: 10) {
-        nodes { amount receivedAt }
+        nodes { amount createdAt }
       }
       invoices(first: 1) {
         nodes {
@@ -173,7 +173,7 @@ invoices_data = jobber_query("""
       id total invoiceStatus paymentsTotal
       issuedDate dueDate
       paymentRecords(first: 10) {
-        nodes { amount receivedAt }
+        nodes { amount createdAt }
       }
     }
   }
@@ -210,8 +210,7 @@ for job in jobs:
     email = emails_list[0].get("address","") if emails_list else ""
 
     # Lead source from job source field
-    source = job.get("source") or {}
-    lead_source = source.get("name","") or source.get("type","") or "Jobber"
+    lead_source = str(job.get("source") or "Jobber")
 
     # Costs
     line_items = job.get("lineItems",{}).get("nodes",[]) or []
@@ -238,12 +237,12 @@ for job in jobs:
         if len(payment_records) == 1:
             pmt_amt = float(payment_records[0].get("amount") or 0)
             if deposit_amt and pmt_amt <= deposit_amt * 1.1:
-                deposit_date = fmt_date(payment_records[0].get("receivedAt",""))
+                deposit_date = fmt_date(payment_records[0].get("createdAt",""))
             else:
-                final_payment_date = fmt_date(payment_records[0].get("receivedAt",""))
+                final_payment_date = fmt_date(payment_records[0].get("createdAt",""))
         else:
-            deposit_date = fmt_date(payment_records[0].get("receivedAt",""))
-            final_payment_date = fmt_date(payment_records[-1].get("receivedAt",""))
+            deposit_date = fmt_date(payment_records[0].get("createdAt",""))
+            final_payment_date = fmt_date(payment_records[-1].get("createdAt",""))
 
     # Quote dates using correct fields
     quote = job.get("quote") or {}
@@ -298,7 +297,7 @@ else:
 weekly_collections = 0
 for inv in invoices:
     for pmt in inv.get("paymentRecords",{}).get("nodes",[]):
-        received = fmt_date(pmt.get("receivedAt",""))
+        received = fmt_date(pmt.get("createdAt",""))
         if received:
             try:
                 d = datetime.date.fromisoformat(received)
