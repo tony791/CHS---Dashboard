@@ -187,13 +187,11 @@ invoices = invoices_data.get("invoices", {}).get("nodes", [])
 print(f"Found {len(invoices)} invoices")
 
 # ── Build Job Tracker rows ─────────────────────────────────────
-# Columns: A:Job# B:Customer C:Address D:Phone E:Email
-# F:SubCost G:Materials H:OtherExp I:TotalCosts J:NetProfit K:JobTotal
-# L:Status M:QuoteGiven N:QuoteApproved O:DepositPaid P:PaymentCollected
-# Q:LeadSource R:Notes
-
 print("Building Job Tracker data...")
 job_rows = []
+ytd_revenue = 0.0
+ytd_cost    = 0.0
+
 for job in jobs:
     job_num = str(job.get("jobNumber",""))
     total_price = float(job.get("total") or 0)
@@ -213,15 +211,13 @@ for job in jobs:
     phone = phones[0].get("number","") if phones else ""
     email = emails_list[0].get("address","") if emails_list else ""
 
-    # Lead source from job source field
-    # Get Referred By from client custom fields
+    # Lead source
     custom_fields = job.get("client",{}).get("customFields",[]) or []
     referred_by = ""
     for cf in custom_fields:
         if cf.get("label","").lower() in ["referred by","referral","lead source"]:
             referred_by = cf.get("valueText","") or cf.get("valueDropdown","") or ""
             break
-    # Fall back to job source if no referral
     source_map = {
         "QUOTE_CONVERT": "Quote",
         "GQL_API": "Jobber",
@@ -241,15 +237,13 @@ for job in jobs:
     total_cost = sub_cost + mat_cost + other_cost
     net_profit = total_price - total_cost
 
-    # Invoice data (from nested job.invoices)
+    # Invoice data
     job_invoices = job.get("invoices",{}).get("nodes",[]) or []
     inv = job_invoices[0] if job_invoices else {}
     inv_status = (inv.get("invoiceStatus","") or "").upper()
     payments_total = float(inv.get("paymentsTotal") or 0)
     deposit_amt = float((inv.get("amounts") or {}).get("depositAmount") or 0)
 
-    # Payment dates - Jobber PaymentRecord has no date field
-    # Use invoice dates as best proxy
     payment_records = job.get("paymentRecords",{}).get("nodes",[]) or []
     num_payments = len(payment_records)
     deposit_date = ""
@@ -259,14 +253,11 @@ for job in jobs:
     if inv_status == "PAID":
         final_payment_date = fmt_date(inv.get("dueDate",""))
 
-    # Quote dates using correct fields
     quote = job.get("quote") or {}
     quote_sent = fmt_date(quote.get("createdAt",""))
-    # quoteStatus comes back lowercase from Jobber
     quote_status = (quote.get("quoteStatus","") or "").lower()
     quote_approved = fmt_date(quote.get("transitionedAt","")) if quote_status in ["approved","converted"] else ""
 
-    # Status mapping
     has_visits = (job.get("visits",{}).get("totalCount") or 0) > 0
     if inv_status == "PAID":
         status = "Completed"
@@ -281,25 +272,16 @@ for job in jobs:
     else:
         status = "Need to Schedule"
 
+    # Accumulate YTD totals (all 2026 jobs)
+    ytd_revenue += total_price
+    ytd_cost    += total_cost
+
     job_rows.append([
-        job_num,                    # A: Job #
-        client_name,               # B: Customer Name
-        address,                   # C: Address
-        phone,                     # D: Phone
-        email,                     # E: Email
-        fmt_money(sub_cost),       # F: Sub Cost ($)
-        fmt_money(mat_cost),       # G: Materials ($)
-        fmt_money(other_cost),     # H: Other Expenses ($)
-        fmt_money(total_cost),     # I: Total Costs ($)
-        fmt_money(net_profit),     # J: Net Profit
-        fmt_money(total_price),    # K: Job Total ($)
-        status,                    # L: Status
-        quote_sent,                # M: Quote Given
-        quote_approved,            # N: Quote Approved
-        deposit_date,              # O: Deposit Paid
-        final_payment_date,        # P: Payment Collected
-        lead_source,               # Q: Lead Source
-        ""                         # R: Notes
+        job_num, client_name, address, phone, email,
+        fmt_money(sub_cost), fmt_money(mat_cost), fmt_money(other_cost),
+        fmt_money(total_cost), fmt_money(net_profit), fmt_money(total_price),
+        status, quote_sent, quote_approved, deposit_date, final_payment_date,
+        lead_source, ""
     ])
 
 if job_rows:
@@ -307,6 +289,21 @@ if job_rows:
     script_write_rows(JOB_TRACKER_SCRIPT, "Job Tracker", 5, job_rows)
 else:
     print("No jobs to write")
+
+# ── Write YTD Revenue to Dashboard tab ───────────────────────
+ytd_profit = ytd_revenue - ytd_cost
+ytd_jobs   = len(jobs)
+print(f"YTD 2026: Revenue=${ytd_revenue:.2f}  Cost=${ytd_cost:.2f}  Profit={ytd_profit:.2f}  Jobs={ytd_jobs}")
+
+# Write to Dashboard!B2:E2
+# B2=YTD Revenue, C2=YTD Cost, D2=YTD Profit, E2=Job Count
+dashboard_payload = {
+    "tab": "Dashboard",
+    "range": "B2:E2",
+    "values": [[round(ytd_revenue, 2), round(ytd_cost, 2), round(ytd_profit, 2), ytd_jobs]]
+}
+resp = script_get(JOB_TRACKER_SCRIPT, dashboard_payload)
+print(f"Dashboard tab write: {resp[:100]}")
 
 # ── Weekly metrics using paymentRecords ───────────────────────
 weekly_collections = 0
@@ -320,7 +317,6 @@ for inv in invoices:
                     weekly_collections += float(pmt.get("amount") or 0)
             except: pass
 
-# Weekly new sales = quotes converted this week
 weekly_new_sales = 0
 for job in jobs:
     quote = job.get("quote") or {}
