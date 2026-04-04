@@ -123,7 +123,7 @@ jobs_data = jobber_query("""
         totalCount
       }
       paymentRecords(first: 10) {
-        nodes { amount createdAt }
+        nodes { amount }
       }
       invoices(first: 1) {
         nodes {
@@ -173,7 +173,7 @@ invoices_data = jobber_query("""
       id total invoiceStatus paymentsTotal
       issuedDate dueDate
       paymentRecords(first: 10) {
-        nodes { amount createdAt }
+        nodes { amount }
       }
     }
   }
@@ -210,7 +210,15 @@ for job in jobs:
     email = emails_list[0].get("address","") if emails_list else ""
 
     # Lead source from job source field
-    lead_source = str(job.get("source") or "Jobber")
+    source_map = {
+        "QUOTE_CONVERT": "Quote",
+        "GQL_API": "API/Import",
+        "WEB_APP": "Web App",
+        "CLIENT_HUB": "Client Hub",
+        "MANUAL": "Manual",
+    }
+    raw_source = str(job.get("source") or "")
+    lead_source = source_map.get(raw_source, raw_source or "Jobber")
 
     # Costs
     line_items = job.get("lineItems",{}).get("nodes",[]) or []
