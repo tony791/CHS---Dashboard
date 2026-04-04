@@ -1742,12 +1742,12 @@ function fetchSheetKPIs(){
   }).catch(function(e){console.log('Sheets API error:',e);});
 }
 
+// ── WEALTHY CONTRACTOR LIVE DATA ──────────────────────────
+var WC_SHEET_ID='%%WC_SHEET_ID%%';
+
 // Auto-refresh KPIs every 5 minutes
 fetchSheetKPIs();
 setInterval(fetchSheetKPIs, 5*60*1000);
-
-// ── WEALTHY CONTRACTOR LIVE DATA ──────────────────────────
-var WC_SHEET_ID='%%WC_SHEET_ID%%';
 
 function fetchWCData(){
   var today=new Date();
