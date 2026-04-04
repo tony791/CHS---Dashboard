@@ -1666,18 +1666,23 @@ async function appendToSmartNotesSheet(note){
 function loadNoteHistory(){
   var list=document.getElementById('sn-history-list');
   list.innerHTML='<div class="empty" style="padding:8px 0;"><div class="spin" style="margin:0 auto 6px;"></div>Loading...</div>';
-  var auth=sheetsAuth();
-  fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A2:H100')+auth.qs,{headers:auth.headers})
+
+  // Use OAuth when available — API key alone often fails on private sheets
+  var hdrs=oauthToken?{'Authorization':'Bearer '+oauthToken}:{};
+  var qs=oauthToken?'':'?key='+API_KEY;
+
+  fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A2:H100')+qs,{headers:hdrs})
     .then(function(r){return r.json();})
     .then(function(d){
+      if(d.error){renderLocalHistory(list);return;}
       var rows=(d.values||[]).reverse();
-      if(!rows.length){renderLocalHistory(list);return;}
+      if(!rows.length){list.innerHTML='<div class="empty">No notes yet — write one above!</div>';return;}
       list.innerHTML=rows.map(function(r,idx){
-        var realIdx=rows.length-idx; // 1-based row index in sheet (row 2 = data row 1)
-        var sheetRow=realIdx+1; // account for header row
+        var realIdx=rows.length-idx;
+        var sheetRow=realIdx+1;
         var taskCount=r[7]||0;
         var catColor=SN_CAT_COLORS[r[2]]||null;
-        var catStyle=catColor?'background:rgba('+Math.round(catColor.red*255)+','+Math.round(catColor.green*255)+','+Math.round(catColor.blue*255)+',.25);color:rgba(0,0,0,.7);':'background:rgba(240,165,0,.15);color:var(--gold);';
+        var catStyle=catColor?'background:rgba('+Math.round(catColor.red*255)+','+Math.round(catColor.green*255)+','+Math.round(catColor.blue*255)+',.25);color:rgba(0,0,0,.75);':'background:rgba(240,165,0,.15);color:var(--gold);';
         return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;" data-sheet-row="'+sheetRow+'">'+
           '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'+
             '<div style="display:flex;gap:6px;align-items:center;">'+
@@ -1689,7 +1694,7 @@ function loadNoteHistory(){
               '<button onclick="archiveNote('+sheetRow+',this)" style="background:rgba(82,192,122,.15);border:1px solid rgba(82,192,122,.3);color:var(--green);border-radius:5px;font-size:9px;font-weight:700;padding:2px 7px;cursor:pointer;transition:all .2s;" title="Mark as done & archive">✓ Done</button>'+
             '</div>'+
           '</div>'+
-          '<div style="font-size:12px;color:var(--cream);line-height:1.4;cursor:pointer;" onclick="expandNote(this.parentElement)">'+(r[4]&&r[4]!=='(Not processed)'?r[4]:r[3].substring(0,80)+(r[3].length>80?'...':''))+'</div>'+
+          '<div style="font-size:12px;color:var(--cream);line-height:1.4;cursor:pointer;" onclick="expandNote(this.parentElement)">'+(r[4]&&r[4]!=='(Not processed)'?r[4]:(r[3]||'').substring(0,80)+((r[3]||'').length>80?'...':''))+'</div>'+
           '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+(r[3]||'')+'</div>'+
         '</div>';
       }).join('');
@@ -1697,6 +1702,31 @@ function loadNoteHistory(){
     .catch(function(){renderLocalHistory(list);});
 }
 
+function renderLocalHistory(list){
+  if(!snNotes.length){list.innerHTML='<div class="empty">No notes yet</div>';return;}
+  list.innerHTML=snNotes.map(function(n,idx){
+    return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'+
+        '<span style="font-size:9px;font-weight:800;background:rgba(240,165,0,.15);color:var(--gold);padding:1px 7px;border-radius:20px;">'+(n.category||'General')+'</span>'+
+        '<div style="display:flex;align-items:center;gap:8px;">'+
+          '<span style="font-size:10px;color:var(--muted);">'+n.date+' '+n.time+'</span>'+
+          '<button onclick="archiveLocalNote('+idx+',this)" style="background:rgba(82,192,122,.15);border:1px solid rgba(82,192,122,.3);color:var(--green);border-radius:5px;font-size:9px;font-weight:700;padding:2px 7px;cursor:pointer;" title="Mark as done">✓ Done</button>'+
+        '</div>'+
+      '</div>'+
+      '<div style="font-size:12px;color:var(--cream);line-height:1.4;cursor:pointer;" onclick="expandNote(this.parentElement)">'+(n.summary&&n.summary!=='(Not processed)'?n.summary:n.rawNote.substring(0,80)+(n.rawNote.length>80?'...':''))+'</div>'+
+      '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+n.rawNote+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+function archiveLocalNote(idx,btn){
+  btn.textContent='✓';btn.disabled=true;
+  snNotes.splice(idx,1);
+  localStorage.setItem('chs_smart_notes',JSON.stringify(snNotes));
+  var card=btn.parentElement;
+  while(card&&!card.style.background)card=card.parentElement;
+  if(card){card.style.transition='opacity .4s';card.style.opacity='0';setTimeout(function(){card.remove();},420);}
+}
 async function archiveNote(sheetRow, btn){
   if(!oauthToken){alert('Connect Google first to archive notes.');return;}
   btn.textContent='⏳';btn.disabled=true;
@@ -1746,7 +1776,7 @@ async function archiveNote(sheetRow, btn){
 
 var _archiveTabReady=false;
 async function ensureArchiveTab(){
-  if(_archiveTabReady)return;
+  // Always re-verify tab exists (don't cache across sessions)
   var base='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID;
 
   // Check if tab already exists
@@ -1803,7 +1833,14 @@ function toggleArchive(){
   var btn=document.getElementById('sn-archive-btn');
   panel.style.display=snArchiveVisible?'block':'none';
   btn.textContent=snArchiveVisible?'📦 Hide Archive':'📦 Archive';
-  if(snArchiveVisible){loadArchivedNotes();}
+  if(snArchiveVisible){
+    // Create the tab now if it doesn't exist yet, then load notes
+    if(oauthToken){
+      ensureArchiveTab().then(function(){loadArchivedNotes();});
+    } else {
+      loadArchivedNotes();
+    }
+  }
   // Close history if open
   if(snArchiveVisible&&snHistoryVisible){snHistoryVisible=false;document.getElementById('sn-history').style.display='none';document.getElementById('sn-history-btn').textContent='📋 History';}
 }
