@@ -1244,9 +1244,11 @@ async function processNote(){
   try{
     setSNProgress(35,'Summarizing and extracting tasks...');
     var today=new Date().toISOString().split('T')[0];
-    var res=await fetch('https://api.anthropic.com/v1/messages',{
+    var res=await fetch('https://chs-claude-proxy.tony-bc5.workers.dev',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json'
+      },
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:1000,
