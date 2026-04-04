@@ -1745,6 +1745,36 @@ function fetchSheetKPIs(){
     document.getElementById('kv-mp').textContent=fmt(monthlyProfit);
     // openLeads count stored internally (not displayed in KPI strip)
 
+    // ── Also populate Business Pulse from Job Tracker data ──
+    // This Month Income = all payments collected this month
+    document.getElementById('wc-mo-income').textContent=fmt(monthlyCollected);
+    // This Month Profit = monthly collected minus costs
+    document.getElementById('wc-mo-profit').textContent=fmt(monthlyProfit);
+    // Wk Collections = revenue this week
+    document.getElementById('wc-wk-coll').textContent=fmt(revenueWeek);
+
+    // YTD calculations
+    var ytdIncome=0, ytdProfit=0;
+    rows.forEach(function(row){
+      var jobTotal=parseFloat((row[10]||'0').toString().replace(/[$,]/g,''))||0;
+      var totalCosts=parseFloat((row[8]||'0').toString().replace(/[$,]/g,''))||0;
+      var pymtCollectedStr=(row[15]||'').trim();
+      function parseDate2(s){
+        if(!s)return null;
+        if(s.match(/^\d{4}-\d{2}-\d{2}$/)){var p=s.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
+        var p=s.split('/');if(p.length===3)return new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1]));return null;
+      }
+      var pymtDate=parseDate2(pymtCollectedStr);
+      var yearStart=new Date(today.getFullYear(),0,1);
+      if(pymtDate&&pymtDate>=yearStart){
+        ytdIncome+=jobTotal;
+        ytdProfit+=(jobTotal-totalCosts);
+      }
+    });
+    document.getElementById('wc-ytd-income').textContent=fmt(ytdIncome);
+    document.getElementById('wc-ytd-profit').textContent=fmt(ytdProfit);
+    document.getElementById('kv-ol').textContent=fmt(ytdIncome);
+
     // Show last updated time
     var now=new Date();
     var timeStr=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
