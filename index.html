@@ -1383,11 +1383,13 @@ async function appendToSmartNotesSheet(note){
     }
   }catch(e){}
 
-  // Append the row
+  // Append the row using OAuth token
   var row=[[note.date,note.time,note.category,note.rawNote,note.summary,note.tags,note.tasksExtracted,note.taskCount]];
-  var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A:H')+':append?valueInputOption=RAW'+(snAuth.qs?snAuth.qs.replace('?','&'):'');
+  var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A:H')+':append?valueInputOption=RAW';
   try{
-    await fetch(appendUrl,{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify({values:row,majorDimension:'ROWS'})});
+    var appendResp=await fetch(appendUrl,{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify({values:row,majorDimension:'ROWS'})});
+    var appendData=await appendResp.json();
+    if(appendData.error){console.log('Sheet append error:',appendData.error);}
   }catch(e){console.log('Sheet append error:',e);}
 }
 
