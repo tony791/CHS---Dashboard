@@ -1,4 +1,4 @@
-import os, requests, datetime, sys, json
+import os, requests, datetime, sys, json, time
 
 CLIENT_ID = os.environ['JOBBER_CLIENT_ID']
 CLIENT_SECRET = os.environ['JOBBER_CLIENT_SECRET']
@@ -12,20 +12,18 @@ WC_TRACKER_SCRIPT  = "https://script.google.com/macros/s/AKfycbzN2yakVRoBYdSa-F-
 
 JOBBER_API = "https://api.getjobber.com/api/graphql"
 
-# Step 1: Refresh access token
+# ── Token refresh ─────────────────────────────────────────────
 print("Refreshing Jobber access token...")
 token_resp = requests.post(
     "https://api.getjobber.com/api/oauth/token",
     headers={"Content-Type": "application/x-www-form-urlencoded"},
     data={"client_id": CLIENT_ID, "client_secret": CLIENT_SECRET,
           "grant_type": "refresh_token", "refresh_token": REFRESH_TOKEN})
-
-print(f"Token refresh HTTP status: {token_resp.status_code}")
+print(f"Token refresh HTTP: {token_resp.status_code}")
 token_data = token_resp.json()
 if "access_token" not in token_data:
     print(f"Token refresh failed: {token_data}")
     sys.exit(1)
-
 ACCESS_TOKEN = token_data["access_token"]
 print("Access token refreshed ✓")
 
@@ -38,7 +36,7 @@ HEADERS = {
 def jobber_query(query):
     r = requests.post(JOBBER_API, headers=HEADERS, json={"query": query})
     if r.status_code != 200:
-        print(f"Jobber API error: {r.status_code} {r.text[:300]}")
+        print(f"Jobber API error: {r.status_code} {r.text[:200]}")
         return {}
     data = r.json()
     if "errors" in data:
@@ -55,31 +53,23 @@ def script_get(script_url, payload):
         return f"Error: {ex}"
 
 def script_write_rows(script_url, tab, start_row, values, clear_end_row=60):
-    # Clear range first
     clear_payload = {
-        "tab": tab,
-        "clear": True,
+        "tab": tab, "clear": True,
         "clearRange": f"A{start_row}:R{clear_end_row}",
         "range": f"A{start_row}:R{clear_end_row}",
         "values": [["","","","","","","","","","","","","","","","","",""]]
     }
     resp = script_get(script_url, clear_payload)
-    print(f"Clear response: {resp[:80]}")
-
-    # Write each row
+    print(f"Clear: {resp[:60]}")
     success = 0
     for i, row in enumerate(values):
         row_num = start_row + i
-        payload = {
-            "tab": tab,
-            "range": f"A{row_num}:R{row_num}",
-            "values": [row]
-        }
+        payload = {"tab": tab, "range": f"A{row_num}:R{row_num}", "values": [row]}
         resp = script_get(script_url, payload)
         if '"ok"' in resp:
             success += 1
         else:
-            print(f"Row {row_num} error: {resp[:100]}")
+            print(f"Row {row_num} error: {resp[:80]}")
     print(f"Wrote {success}/{len(values)} rows to {tab}")
 
 def sheets_get(sheet_id, range_name):
@@ -89,12 +79,9 @@ def sheets_get(sheet_id, range_name):
     return r.json().get("values", [])
 
 def fmt_date(dt_str):
-    if not dt_str:
-        return ""
-    try:
-        return dt_str[:10]
-    except:
-        return ""
+    if not dt_str: return ""
+    try: return dt_str[:10]
+    except: return ""
 
 def fmt_money(val):
     return f"${float(val or 0):.2f}"
@@ -103,7 +90,7 @@ today = datetime.date.today()
 week_start = today - datetime.timedelta(days=(today.weekday() + 1) % 7)
 week_end = week_start + datetime.timedelta(days=6)
 
-# Step 2: Fetch jobs with full details
+# ── Fetch jobs with all needed data ───────────────────────────
 print("Fetching jobs...")
 jobs_data = jobber_query("""
 {
@@ -111,6 +98,8 @@ jobs_data = jobber_query("""
     nodes {
       id jobNumber title createdAt
       jobStatus
+      startAt completedAt
+      source { name type }
       client {
         name
         phones { number }
@@ -120,9 +109,27 @@ jobs_data = jobber_query("""
         address { street city province postalCode }
       }
       total
+      quote {
+        quoteNumber quoteStatus
+        createdAt
+        transitionedAt
+        amounts { subtotal }
+      }
       lineItems(first: 20) {
+        nodes { name quantity unitPrice unitCost }
+      }
+      visits(first: 1) {
+        nodes { id startAt }
+        totalCount
+      }
+      paymentRecords(first: 10) {
+        nodes { amount receivedAt }
+      }
+      invoices(first: 1) {
         nodes {
-          name quantity unitPrice unitCost
+          id total invoiceStatus paymentsTotal
+          issuedDate dueDate
+          amounts { depositAmount }
         }
       }
     }
@@ -134,8 +141,7 @@ jobs_all = jobs_data.get("jobs", {}).get("nodes", [])
 jobs = [j for j in jobs_all if (j.get("createdAt") or "").startswith("2026")]
 print(f"Found {len(jobs_all)} total jobs, {len(jobs)} from 2026")
 
-# Fetch expenses separately per 2026 job to avoid throttling
-import time
+# ── Fetch expenses per 2026 job ────────────────────────────────
 expenses_by_job = {}
 print("Fetching expenses per job...")
 for job in jobs:
@@ -153,23 +159,22 @@ for job in jobs:
     expenses = exp_data.get("job",{}).get("expenses",{}).get("nodes",[]) or []
     expenses_by_job[job_num] = expenses
     if expenses:
-        total = sum(float(e.get("total") or 0) for e in expenses)
-        print(f"  Job #{job_num}: ${total:.2f} in expenses")
-    time.sleep(0.3)  # avoid throttling
+        total_exp = sum(float(e.get("total") or 0) for e in expenses)
+        print(f"  Job #{job_num}: ${total_exp:.2f} expenses")
+    time.sleep(0.3)
 print(f"Fetched expenses for {len(expenses_by_job)} jobs")
 
-# Step 3: Fetch invoices
+# ── Fetch all invoices for weekly collections ──────────────────
 print("Fetching invoices...")
 invoices_data = jobber_query("""
 {
   invoices(first: 100) {
     nodes {
-      id invoiceNumber subject total
-      invoiceStatus
+      id total invoiceStatus paymentsTotal
       issuedDate dueDate
-      client { name }
-      amounts { depositAmount }
-      paymentsTotal
+      paymentRecords(first: 10) {
+        nodes { amount receivedAt }
+      }
     }
   }
 }
@@ -177,94 +182,10 @@ invoices_data = jobber_query("""
 invoices = invoices_data.get("invoices", {}).get("nodes", [])
 print(f"Found {len(invoices)} invoices")
 
-
-
-# Step 4: Fetch quotes with dates
-print("Fetching quotes...")
-quotes_data = jobber_query("""
-{
-  quotes(first: 50) {
-    nodes {
-      id quoteNumber
-      quoteStatus
-      amounts { subtotal }
-      createdAt
-      sentAt
-      client { name }
-      jobberWebUri
-    }
-  }
-}
-""")
-quotes = quotes_data.get("quotes", {}).get("nodes", [])
-print(f"Found {len(quotes)} quotes")
-
-# Fetch actual payment records with dates
-print("Fetching payment records...")
-payments_data = jobber_query("""
-{
-  payments(first: 100) {
-    nodes {
-      id
-      amount
-      receivedAt
-      invoice {
-        id
-        invoiceNumber
-        subject
-        total
-        client { name }
-      }
-    }
-  }
-}
-""")
-all_payments = payments_data.get("payments", {}).get("nodes", []) or []
-print(f"Found {len(all_payments)} payment records")
-
-# Build payment lookup by invoice ID
-payments_by_invoice = {}
-for pmt in all_payments:
-    inv_node = pmt.get("invoice") or {}
-    inv_id = inv_node.get("id","")
-    if inv_id:
-        if inv_id not in payments_by_invoice:
-            payments_by_invoice[inv_id] = []
-        payments_by_invoice[inv_id].append(pmt)
-
-# Also build by client name as fallback
-payments_by_client = {}
-for pmt in all_payments:
-    inv_node = pmt.get("invoice") or {}
-    client_name = inv_node.get("client",{}).get("name","")
-    if client_name:
-        if client_name not in payments_by_client:
-            payments_by_client[client_name] = []
-        payments_by_client[client_name].append(pmt)
-
-# Build invoice lookup by job number from subject
-invoice_by_job = {}
-for inv in invoices:
-    subj = inv.get("subject","") or ""
-    # Try to find job number in subject
-    for word in subj.split():
-        word = word.strip("#,.")
-        if word.isdigit():
-            invoice_by_job[word] = inv
-
-# Build quote lookup by job number (from convertedAt quotes)
-quote_by_job = {}
-for q in quotes:
-    uri = q.get("jobberWebUri","") or ""
-    # quotes linked to jobs via jobberWebUri or we match by client+date
-    if q.get("quoteStatus") == "CONVERTED":
-        client_name = q.get("client",{}).get("name","")
-        quote_by_job[client_name] = q  # fallback match by client name
-
-# Step 5: Build Job Tracker rows
+# ── Build Job Tracker rows ─────────────────────────────────────
 # Columns: A:Job# B:Customer C:Address D:Phone E:Email
-# F:SubCost G:Materials H:OtherExp I:TotalCosts J:Markup K:JobTotal
-# L:Status M:QuoteGiven N:QuoteApproved O:PymtScheduled P:PymtCollected
+# F:SubCost G:Materials H:OtherExp I:TotalCosts J:NetProfit K:JobTotal
+# L:Status M:QuoteGiven N:QuoteApproved O:DepositPaid P:PaymentCollected
 # Q:LeadSource R:Notes
 
 print("Building Job Tracker data...")
@@ -272,7 +193,8 @@ job_rows = []
 for job in jobs:
     job_num = str(job.get("jobNumber",""))
     total_price = float(job.get("total") or 0)
-    job_status_raw = job.get("jobStatus","") or ""
+    job_status_raw = (job.get("jobStatus") or "").lower()
+    client_name = job.get("client",{}).get("name","")
 
     # Address
     prop = job.get("property") or {}
@@ -286,78 +208,64 @@ for job in jobs:
     emails_list = job.get("client",{}).get("emails",[]) or []
     phone = phones[0].get("number","") if phones else ""
     email = emails_list[0].get("address","") if emails_list else ""
-    lead_source = "Jobber"
 
-    # Costs from line items (unitCost = subcontractor/material cost)
+    # Lead source from job source field
+    source = job.get("source") or {}
+    lead_source = source.get("name","") or source.get("type","") or "Jobber"
+
+    # Costs
     line_items = job.get("lineItems",{}).get("nodes",[]) or []
     sub_cost = sum(float(li.get("unitCost") or 0) * float(li.get("quantity") or 1) for li in line_items)
-
-    # Expenses from separate query
     expenses = expenses_by_job.get(job_num, [])
     mat_cost = sum(float(e.get("total") or 0) for e in expenses)
-
-    other_cost = 0
+    other_cost = 0.0
     total_cost = sub_cost + mat_cost + other_cost
-    net_profit = total_price - total_cost  # net profit after costs
-    
-    # Invoice data
-    inv = invoice_by_job.get(job_num)
-    if not inv:
-        # Try matching by client name
-        client_name = job.get("client",{}).get("name","")
-        for i in invoices:
-            if i.get("client",{}).get("name","") == client_name:
-                inv = i
-                break
+    net_profit = total_price - total_cost
 
-    invoice_total = float(inv.get("total") or total_price) if inv else total_price
-    payments_total = float(inv.get("paymentsTotal") or 0) if inv else 0
-    deposit = float((inv.get("amounts") or {}).get("depositAmount") or 0) if inv else 0
+    # Invoice data (from nested job.invoices)
+    job_invoices = job.get("invoices",{}).get("nodes",[]) or []
+    inv = job_invoices[0] if job_invoices else {}
+    inv_status = (inv.get("invoiceStatus","") or "").upper()
+    payments_total = float(inv.get("paymentsTotal") or 0)
+    deposit_amt = float((inv.get("amounts") or {}).get("depositAmount") or 0)
 
-    # Payment dates from actual payment records
+    # Payment dates from job.paymentRecords
+    payment_records = job.get("paymentRecords",{}).get("nodes",[]) or []
+    payment_records = sorted(payment_records, key=lambda p: p.get("receivedAt","") or "")
     deposit_date = ""
     final_payment_date = ""
-    inv_id = inv.get("id","") if inv else ""
-    inv_pmts = payments_by_invoice.get(inv_id, [])
-    if not inv_pmts and client_name:
-        inv_pmts = payments_by_client.get(client_name, [])
-    # Sort by date
-    inv_pmts = sorted(inv_pmts, key=lambda p: p.get("receivedAt","") or "")
-    if inv_pmts:
-        deposit_date = fmt_date(inv_pmts[0].get("receivedAt",""))
-        if len(inv_pmts) > 1:
-            final_payment_date = fmt_date(inv_pmts[-1].get("receivedAt",""))
+    if payment_records:
+        if len(payment_records) == 1:
+            pmt_amt = float(payment_records[0].get("amount") or 0)
+            if deposit_amt and pmt_amt <= deposit_amt * 1.1:
+                deposit_date = fmt_date(payment_records[0].get("receivedAt",""))
+            else:
+                final_payment_date = fmt_date(payment_records[0].get("receivedAt",""))
         else:
-            # Only one payment - check if it covers full amount
-            pmt_amt = float(inv_pmts[0].get("amount") or 0)
-            inv_total = float(inv.get("total") or 0) if inv else 0
-            if pmt_amt >= inv_total * 0.9:
-                final_payment_date = deposit_date
-                deposit_date = ""
-    inv_status = inv.get("invoiceStatus","") if inv else ""
+            deposit_date = fmt_date(payment_records[0].get("receivedAt",""))
+            final_payment_date = fmt_date(payment_records[-1].get("receivedAt",""))
 
-    # Visits - check job status instead to avoid throttling
-    has_visits = job_status_raw.lower() in ["active", "in_progress", "requires_invoicing"]
+    # Quote dates using correct fields
+    quote = job.get("quote") or {}
+    # createdAt = when quote was created/sent
+    # transitionedAt = when it was approved/converted
+    quote_sent = fmt_date(quote.get("createdAt",""))
+    quote_approved = fmt_date(quote.get("transitionedAt","")) if quote.get("quoteStatus") in ["APPROVED","CONVERTED"] else ""
 
-    # Map Jobber status to spreadsheet dropdown options exactly
+    # Status mapping
+    has_visits = (job.get("visits",{}).get("totalCount") or 0) > 0
     if inv_status == "PAID":
         status = "Completed"
-    elif inv_status in ["SENT", "VIEWED", "PAST_DUE"]:
+    elif inv_status in ["SENT","VIEWED","PAST_DUE"]:
         status = "Awaiting Payment"
-    elif job_status_raw.lower() in ["requires_invoicing"]:
+    elif job_status_raw in ["requires_invoicing"]:
         status = "Awaiting Payment"
-    elif job_status_raw.lower() in ["completed", "archived"]:
+    elif job_status_raw in ["completed","archived"]:
         status = "Completed"
     elif has_visits:
         status = "In Progress"
     else:
         status = "Need to Schedule"
-
-    # Quote data - match by client name
-    client_name = job.get("client",{}).get("name","")
-    q = quote_by_job.get(client_name)
-    quote_sent = fmt_date(q.get("sentAt","") if q else "")
-    quote_approved = fmt_date(q.get("createdAt","") if q else "")
 
     job_rows.append([
         job_num,                    # A: Job #
@@ -374,8 +282,8 @@ for job in jobs:
         status,                    # L: Status
         quote_sent,                # M: Quote Given
         quote_approved,            # N: Quote Approved
-        deposit_date,              # O: Pymt Scheduled (deposit date)
-        final_payment_date,        # P: Pymt Collected (final payment date)
+        deposit_date,              # O: Deposit Paid
+        final_payment_date,        # P: Payment Collected
         lead_source,               # Q: Lead Source
         ""                         # R: Notes
     ])
@@ -386,31 +294,34 @@ if job_rows:
 else:
     print("No jobs to write")
 
-# Step 6: Weekly metrics - use actual payment received dates
+# ── Weekly metrics using paymentRecords ───────────────────────
 weekly_collections = 0
-for pmt in all_payments:
-    received = fmt_date(pmt.get("receivedAt",""))
-    if received:
-        try:
-            d = datetime.date.fromisoformat(received)
-            if week_start <= d <= week_end:
-                weekly_collections += float(pmt.get("amount") or 0)
-        except: pass
+for inv in invoices:
+    for pmt in inv.get("paymentRecords",{}).get("nodes",[]):
+        received = fmt_date(pmt.get("receivedAt",""))
+        if received:
+            try:
+                d = datetime.date.fromisoformat(received)
+                if week_start <= d <= week_end:
+                    weekly_collections += float(pmt.get("amount") or 0)
+            except: pass
 
+# Weekly new sales = quotes converted this week
 weekly_new_sales = 0
-for q in quotes:
-    if q.get("quoteStatus") == "CONVERTED":
-        conv = fmt_date(q.get("createdAt",""))
+for job in jobs:
+    quote = job.get("quote") or {}
+    if quote.get("quoteStatus") == "CONVERTED":
+        conv = fmt_date(quote.get("transitionedAt",""))
         if conv:
             try:
                 d = datetime.date.fromisoformat(conv)
                 if week_start <= d <= week_end:
-                    weekly_new_sales += float(q.get("amounts",{}).get("subtotal") or 0)
+                    weekly_new_sales += float((quote.get("amounts") or {}).get("subtotal") or 0)
             except: pass
 
 print(f"Week {week_start} to {week_end}: collections=${weekly_collections:.2f}, new sales=${weekly_new_sales:.2f}")
 
-# Step 7: Write to WC KBPI
+# ── Write to WC KBPI ──────────────────────────────────────────
 kbpi_rows = sheets_get(WC_SHEET_ID, "Key Business Performance Indicators!A3:I60")
 week_end_str = f"{week_end.month}/{week_end.day}"
 target_row = None
