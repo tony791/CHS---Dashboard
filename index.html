@@ -537,7 +537,9 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
             </div>
             <div class="tfact"><button class="tfcanc" onclick="closeTaskForm()">Cancel</button><button class="tfsave" onclick="saveTask()">Save Task</button></div>
           </div>
-          <div id="task-list" style="display:flex;flex-direction:column;gap:6px;min-height:200px;max-height:340px;overflow-y:auto;padding-right:4px;flex:1;"></div>
+          <div style="height:320px;overflow-y:auto;padding-right:2px;">
+            <div id="task-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
           <div class="tstat" id="task-stats"></div>
         </div>
       </div>
@@ -890,7 +892,7 @@ function fetchGoogleTasks(){
     if(!lists.length)return;
     // Fetch tasks from all lists
     var promises=lists.map(function(list){
-      return fetch('https://tasks.googleapis.com/tasks/v1/lists/'+list.id+'/tasks?showCompleted=true&maxResults=100',{
+      return fetch('https://tasks.googleapis.com/tasks/v1/lists/'+list.id+'/tasks?showCompleted=false&showHidden=false&maxResults=100',{
         headers:{'Authorization':'Bearer '+gTasksAccessToken}
       }).then(function(r){return r.json();}).then(function(d){
         return (d.items||[]).map(function(t){return Object.assign(t,{_listId:list.id,_listTitle:list.title});});
