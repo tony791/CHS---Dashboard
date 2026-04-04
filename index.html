@@ -1727,6 +1727,11 @@ function archiveLocalNote(idx,btn){
   while(card&&!card.style.background)card=card.parentElement;
   if(card){card.style.transition='opacity .4s';card.style.opacity='0';setTimeout(function(){card.remove();},420);}
 }
+
+function expandNote(el){
+  var full=el.querySelector('.sn-note-full');
+  if(full)full.style.display=full.style.display==='none'?'block':'none';
+}
 async function archiveNote(sheetRow, btn){
   if(!oauthToken){alert('Connect Google first to archive notes.');return;}
   btn.textContent='⏳';btn.disabled=true;
@@ -1871,24 +1876,6 @@ function loadArchivedNotes(){
     .catch(function(){list.innerHTML='<div class="empty">Could not load archive — create the "Archived Notes" tab by archiving a note first</div>';});
 }
 
-function renderLocalHistory(list){
-  if(!snNotes.length){list.innerHTML='<div class="empty">No notes yet</div>';return;}
-  list.innerHTML=snNotes.map(function(n){
-    return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;cursor:pointer;" onclick="expandNote(this)">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'+
-        '<span style="font-size:9px;font-weight:800;background:rgba(240,165,0,.15);color:var(--gold);padding:1px 7px;border-radius:20px;">'+(n.category||'General')+'</span>'+
-        '<span style="font-size:10px;color:var(--muted);">'+n.date+' '+n.time+'</span>'+
-      '</div>'+
-      '<div style="font-size:12px;color:var(--cream);line-height:1.4;">'+(n.summary&&n.summary!=='(Not processed)'?n.summary:n.rawNote.substring(0,80)+(n.rawNote.length>80?'...':''))+'</div>'+
-      '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+n.rawNote+'</div>'+
-    '</div>';
-  }).join('');
-}
-
-function expandNote(el){
-  var full=el.querySelector('.sn-note-full');
-  if(full)full.style.display=full.style.display==='none'?'block':'none';
-}
 // ── GOOGLE MEET ────────────────────────────────────────
 var meetings=JSON.parse(localStorage.getItem('chs_meetings')||'[]');
 
