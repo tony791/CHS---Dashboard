@@ -236,28 +236,23 @@ for job in jobs:
     payments_total = float(inv.get("paymentsTotal") or 0)
     deposit_amt = float((inv.get("amounts") or {}).get("depositAmount") or 0)
 
-    # Payment dates from job.paymentRecords
+    # Payment dates - Jobber PaymentRecord has no date field
+    # Use invoice dates as best proxy
     payment_records = job.get("paymentRecords",{}).get("nodes",[]) or []
-    payment_records = sorted(payment_records, key=lambda p: p.get("receivedAt","") or "")
+    num_payments = len(payment_records)
     deposit_date = ""
     final_payment_date = ""
-    if payment_records:
-        if len(payment_records) == 1:
-            pmt_amt = float(payment_records[0].get("amount") or 0)
-            if deposit_amt and pmt_amt <= deposit_amt * 1.1:
-                deposit_date = fmt_date(payment_records[0].get("createdAt",""))
-            else:
-                final_payment_date = fmt_date(payment_records[0].get("createdAt",""))
-        else:
-            deposit_date = fmt_date(payment_records[0].get("createdAt",""))
-            final_payment_date = fmt_date(payment_records[-1].get("createdAt",""))
+    if deposit_amt > 0 and num_payments >= 1:
+        deposit_date = fmt_date(inv.get("issuedDate",""))
+    if inv_status == "PAID":
+        final_payment_date = fmt_date(inv.get("dueDate",""))
 
     # Quote dates using correct fields
     quote = job.get("quote") or {}
-    # createdAt = when quote was created/sent
-    # transitionedAt = when it was approved/converted
     quote_sent = fmt_date(quote.get("createdAt",""))
-    quote_approved = fmt_date(quote.get("transitionedAt","")) if quote.get("quoteStatus") in ["APPROVED","CONVERTED"] else ""
+    # quoteStatus comes back lowercase from Jobber
+    quote_status = (quote.get("quoteStatus","") or "").lower()
+    quote_approved = fmt_date(quote.get("transitionedAt","")) if quote_status in ["approved","converted"] else ""
 
     # Status mapping
     has_visits = (job.get("visits",{}).get("totalCount") or 0) > 0
