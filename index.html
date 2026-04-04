@@ -892,7 +892,6 @@ var gTasksAccessToken=null;
 
 function fetchGoogleTasks(){
   if(!gTasksConnected||!gTasksAccessToken)return;
-  // Fetch all task lists first
   fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists',{
     headers:{'Authorization':'Bearer '+gTasksAccessToken}
   })
@@ -900,9 +899,9 @@ function fetchGoogleTasks(){
   .then(function(d){
     var lists=d.items||[];
     if(!lists.length)return;
-    // Fetch tasks from all lists
     var promises=lists.map(function(list){
-      return fetch('https://tasks.googleapis.com/tasks/v1/lists/'+list.id+'/tasks?showCompleted=false&showHidden=false&maxResults=100',{
+      // showHidden=true so subtasks (which can be hidden) are included
+      return fetch('https://tasks.googleapis.com/tasks/v1/lists/'+list.id+'/tasks?showCompleted=false&showHidden=true&maxResults=100',{
         headers:{'Authorization':'Bearer '+gTasksAccessToken}
       }).then(function(r){return r.json();}).then(function(d){
         return (d.items||[]).map(function(t){return Object.assign(t,{_listId:list.id,_listTitle:list.title});});
@@ -913,39 +912,30 @@ function fetchGoogleTasks(){
   .then(function(allTasks){
     if(!allTasks)return;
     var googleTasks=[].concat.apply([],allTasks);
-    // Full replace of Google Tasks — keep manually created local tasks
     var localOnly=tasks.filter(function(t){return !t.gTasksId;});
     var googleTaskObjects=googleTasks.map(function(gt){
       var due='';
       if(gt.due){var d=new Date(gt.due);due=d.toISOString().split('T')[0];}
-      // Check starred — Google Tasks API returns starred as boolean
-      var isStarred=gt.starred===true||gt.starred==='true';
-      // Also check if task was previously marked high priority
       var existing=tasks.find(function(t){return t.gTasksId===gt.id;});
-      var pri=isStarred?'high':(existing?existing.pri:'');
-      return {
+      var pri=gt.starred===true?'high':(existing?existing.pri:'');
+      return{
         title:gt.title||'Untitled',
-        due:due,
-        time:'',
-        pri:pri,
+        due:due,time:'',pri:pri,
         cat:existing?existing.cat:'',
         notes:gt.notes||'',
         done:gt.status==='completed',
         created:gt.updated||new Date().toISOString(),
         gTasksId:gt.id,
-        gTasksList:gt._listId
+        gTasksList:gt._listId,
+        parentId:gt.parent||null  // ← capture parent relationship
       };
     });
     tasks=localOnly.concat(googleTaskObjects);
-    saveTasks();
-    renderTasks();
-    // Update badge
+    saveTasks();renderTasks();
     var badge=document.getElementById('tasks-sync-badge');
     if(badge){
       badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;"></span>Google Tasks: '+googleTasks.length+' tasks synced';
-      badge.style.background='rgba(82,192,122,.12)';
-      badge.style.color='var(--green)';
-      badge.style.borderColor='rgba(82,192,122,.3)';
+      badge.style.background='rgba(82,192,122,.12)';badge.style.color='var(--green)';badge.style.borderColor='rgba(82,192,122,.3)';
     }
   })
   .catch(function(e){console.log('Google Tasks fetch error:',e);});
@@ -955,17 +945,46 @@ function saveTasks(){localStorage.setItem('chs_tasks',JSON.stringify(tasks));}
 
 // ── Sync scaffold: called after OAuth connects ──────────
 // These functions are structured & ready — OAuth will fill them in
-function syncTaskToGoogle(task){
+function syncTaskToGoogle(task,parentId){
   if(!gTasksConnected||!gTasksAccessToken)return;
   var body={title:task.title,notes:task.notes||'',status:task.done?'completed':'needsAction'};
   if(task.due&&task.time){body.due=new Date(task.due+'T'+task.time+':00').toISOString();}
   else if(task.due){body.due=new Date(task.due+'T00:00:00').toISOString();}
   var method=task.gTasksId?'PATCH':'POST';
-  var url='https://tasks.googleapis.com/tasks/v1/lists/'+(task.gTasksList||'@default')+'/tasks'+(task.gTasksId?'/'+task.gTasksId:'');
+  var listId=task.gTasksList||'@default';
+  var url='https://tasks.googleapis.com/tasks/v1/lists/'+listId+'/tasks'+(task.gTasksId?'/'+task.gTasksId:'');
+  // For new tasks with a parent, add parent as query param
+  if(!task.gTasksId&&parentId)url+='?parent='+encodeURIComponent(parentId);
   fetch(url,{method:method,headers:{'Authorization':'Bearer '+gTasksAccessToken,'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){return r.json();})
-    .then(function(d){if(d.id){task.gTasksId=d.id;saveTasks();}})
+    .then(function(d){
+      if(d.id){
+        task.gTasksId=d.id;
+        if(parentId&&!task.parentId)task.parentId=parentId;
+        saveTasks();
+      }
+    })
     .catch(function(e){console.log('Google Tasks sync error:',e);});
+}
+
+// Create a subtask under a parent task
+function addSubtask(parentIdx){
+  var parent=tasks[parentIdx];
+  if(!parent)return;
+  var title=prompt('Subtask title:');
+  if(!title||!title.trim())return;
+  var subtask={
+    title:title.trim(),due:'',time:'',pri:'',cat:parent.cat||'',notes:'',
+    done:false,created:new Date().toISOString(),
+    gTasksId:null,gTasksList:parent.gTasksList||'@default',
+    parentId:parent.gTasksId||null,
+    isSubtask:true
+  };
+  tasks.splice(parentIdx+1,0,subtask);
+  saveTasks();renderTasks();
+  if(gTasksConnected&&parent.gTasksId){
+    syncTaskToGoogle(subtask,parent.gTasksId);
+  }
 }
 
 function updateSyncBadge(){
@@ -997,15 +1016,29 @@ function priLbl(p){return p==='high'?'🔴 High':p==='med'?'🟠 Medium':p==='lo
 
 function renderTasks(){
   var list=document.getElementById('task-list'),filtered=getFiltered();
-  // Hide completed tasks from view
   filtered=filtered.filter(function(t){return !t.done;});
   if(!filtered.length){list.innerHTML='<div class="empty">No tasks'+(tFilter!=='all'?' matching this filter':'')+'</div>';renderStats();return;}
-  list.innerHTML=filtered.map(function(t){
+
+  // Build parent→children lookup using Google Tasks parentId
+  var childrenOf={};
+  filtered.forEach(function(t){
+    if(t.isSubtask&&t.parentId){
+      var par=tasks.find(function(p){return p.gTasksId===t.parentId;});
+      if(par){var pi=tasks.indexOf(par);if(!childrenOf[pi])childrenOf[pi]=[];childrenOf[pi].push(t);}
+    }
+  });
+
+  var html='';
+  filtered.forEach(function(t){
+    if(t.isSubtask&&t.parentId)return; // rendered inline under parent
     var i=tasks.indexOf(t);
     var due=getDue(t.due,t.time);
     var pl=priLbl(t.pri);var pc=priCls(t.pri);
-    var syncDot=t.gTasksId?'<span title="Synced to Google Tasks" style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-left:2px;"></span>':'';
-    return'<div class="titem">'+
+    var syncDot=t.gTasksId?'<span title="Synced" style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-left:2px;"></span>':'';
+    var kids=childrenOf[i]||[];
+    var lColor=t.pri==='high'?'#e05252':t.pri==='med'?'var(--orange-lt)':t.pri==='low'?'var(--green)':'rgba(255,255,255,.1)';
+
+    html+='<div class="titem" style="border-left:3px solid '+lColor+';padding-left:9px;">'+
       '<input type="checkbox" class="tchk" onchange="togTask('+i+')">'+
       '<div class="tbody">'+
         '<div class="ttxt">'+t.title+syncDot+'</div>'+
@@ -1015,13 +1048,29 @@ function renderTasks(){
           (t.cat?'<span class="tcat">'+t.cat+'</span>':'')+
           (t.notes?'<span style="font-size:10px;color:var(--muted)">📝 '+t.notes.substring(0,28)+(t.notes.length>28?'...':'')+'</span>':'')+
         '</div>'+
+        '<button onclick="addSubtask('+i+')" style="margin-top:3px;background:none;border:none;color:rgba(255,255,255,.2);font-size:10px;cursor:pointer;padding:0;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='rgba(255,255,255,.2)'">⤷ add subtask'+(kids.length?'  ('+kids.length+')':'')+'</button>'+
       '</div>'+
       '<span class="tdel" onclick="delTask('+i+')">✕</span>'+
     '</div>';
-  }).join('');
+
+    kids.forEach(function(child){
+      var ci=tasks.indexOf(child);
+      var cDue=getDue(child.due,child.time);
+      html+='<div class="titem" style="margin-left:20px;border-left:2px solid rgba(255,255,255,.12);background:rgba(0,0,0,.2);padding-left:8px;">'+
+        '<input type="checkbox" class="tchk" style="width:14px;height:14px;" onchange="togTask('+ci+')">'+
+        '<div class="tbody">'+
+          '<div style="font-size:9px;color:rgba(255,255,255,.3);margin-bottom:1px;letter-spacing:.5px;">SUBTASK</div>'+
+          '<div class="ttxt" style="font-size:12px;">'+child.title+(child.gTasksId?'<span style="width:4px;height:4px;border-radius:50%;background:var(--green);display:inline-block;margin-left:3px;"></span>':'')+'</div>'+
+          (cDue?'<div class="tmeta"><span class="tdue '+cDue.cls+'">📅 '+cDue.txt+'</span></div>':'')+
+        '</div>'+
+        '<span class="tdel" onclick="delTask('+ci+')">✕</span>'+
+      '</div>';
+    });
+  });
+
+  list.innerHTML=html;
   renderStats();
 }
-
 function renderStats(){
   var today=new Date().toISOString().split('T')[0];
   var done=tasks.filter(function(t){return t.done;}).length;
@@ -1266,23 +1315,60 @@ async function processNote(){
     var parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
     setSNProgress(65,'Adding tasks to Task Manager...');
 
-    // Add extracted tasks to local task manager
+    // Add extracted tasks: first task = parent, rest = subtasks under it
     var extractedTasks=parsed.tasks||[];
-    extractedTasks.forEach(function(t){
-      tasks.unshift({
-        title:t.title,
-        due:t.due&&t.due!=='null'?t.due:'',
+    if(extractedTasks.length>0){
+      var noteSnippet='From note: '+text.substring(0,60)+(text.length>60?'...':'');
+      // Create parent task (first extracted task)
+      var parentTask={
+        title:extractedTasks[0].title,
+        due:extractedTasks[0].due&&extractedTasks[0].due!=='null'?extractedTasks[0].due:'',
         time:'',
-        pri:t.priority||'',
-        cat:t.cat||cat,
-        notes:'From note: '+text.substring(0,60)+(text.length>60?'...':''),
+        pri:extractedTasks[0].priority||'',
+        cat:extractedTasks[0].category||cat,
+        notes:noteSnippet,
         done:false,
         created:new Date().toISOString(),
-        gTasksId:null,
-        gTasksList:'@default',
-        fromNote:true
+        gTasksId:null,gTasksList:'@default',
+        parentId:null,isSubtask:false,fromNote:true
+      };
+      tasks.unshift(parentTask);
+      if(gTasksConnected)syncTaskToGoogle(parentTask);
+
+      // Create remaining tasks as subtasks (inserted right after parent)
+      extractedTasks.slice(1).forEach(function(t,idx){
+        var subtask={
+          title:t.title,
+          due:t.due&&t.due!=='null'?t.due:'',
+          time:'',
+          pri:t.priority||'',
+          cat:t.category||cat,
+          notes:'',
+          done:false,
+          created:new Date().toISOString(),
+          gTasksId:null,gTasksList:'@default',
+          parentId:null, // will be set once parentTask gets its gTasksId
+          isSubtask:true,fromNote:true,
+          _pendingParent:true // flag to link after parent syncs
+        };
+        tasks.splice(1+idx,0,subtask);
       });
-    });
+
+      // After a short delay, link subtasks to parent's Google Tasks ID
+      if(gTasksConnected&&extractedTasks.length>1){
+        setTimeout(function(){
+          var children=tasks.filter(function(t){return t._pendingParent&&t.fromNote;});
+          children.forEach(function(child){
+            delete child._pendingParent;
+            if(parentTask.gTasksId){
+              child.parentId=parentTask.gTasksId;
+              syncTaskToGoogle(child,parentTask.gTasksId);
+            }
+          });
+          saveTasks();renderTasks();
+        },2500);
+      }
+    }
     saveTasks();renderTasks();
 
     setSNProgress(85,'Saving to Google Sheets...');
@@ -2271,36 +2357,50 @@ function buildTicker(){
   if(t2)t2.innerHTML=html;
 }
 
-// ── YTD FROM JOBBER (Dashboard tab) ──────────────────────────
-function fetchJobberYTD(){
+// ── BUSINESS PULSE — JOBBER DIRECT DATA ──────────────────────
+// jobber_sync writes Dashboard!B2:G2 every hour:
+// B=YTD Rev  C=Monthly Rev  D=Weekly Coll  E=YTD Profit  F=Monthly Profit  G=Job Count
+function fetchJobberMetrics(){
   var auth=sheetsAuth();
-  // jobber_sync.py writes: B2=YTD Revenue, C2=YTD Cost, D2=YTD Profit, E2=Job Count
-  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent('Dashboard!B2:E2')+auth.qs;
+  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent('Dashboard!B2:G2')+auth.qs;
   fetch(url,{headers:auth.headers})
     .then(function(r){return r.json();})
     .then(function(d){
       var row=(d.values||[[]])[0]||[];
-      function fmtK(v){var n=parseFloat(String(v||'0').replace(/[$,]/g,''))||0;if(!n)return null;return'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
-      var ytdRev=fmtK(row[0]),ytdProfit=fmtK(row[2]);
-      if(ytdRev){
-        document.getElementById('kv-ol').textContent=ytdRev;
-        document.getElementById('wc-ytd-income').textContent=ytdRev;
+      function fmtK(v){
+        var n=parseFloat(String(v||'0').replace(/[$,]/g,''))||0;
+        if(!n)return null;
+        return'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
       }
-      if(ytdProfit){
-        document.getElementById('wc-ytd-profit').textContent=ytdProfit;
+      var ytdRev    =fmtK(row[0]);
+      var moRev     =fmtK(row[1]);
+      var wkColl    =fmtK(row[2]);
+      var ytdProfit =fmtK(row[3]);
+      var moProfit  =fmtK(row[4]);
+
+      if(ytdRev)   {document.getElementById('kv-ol').textContent=ytdRev; document.getElementById('wc-ytd-income').textContent=ytdRev;}
+      if(moRev)    {document.getElementById('kv-mp').textContent=moRev;  document.getElementById('wc-mo-income').textContent=moRev;}
+      if(wkColl)    document.getElementById('wc-wk-coll').textContent=wkColl;
+      if(ytdProfit) document.getElementById('wc-ytd-profit').textContent=ytdProfit;
+      if(moProfit)  document.getElementById('wc-mo-profit').textContent=moProfit;
+
+      // Update last-synced badge
+      var badge=document.getElementById('wc-updated');
+      if(badge&&(ytdRev||moRev)){
+        var now=new Date();
+        badge.innerHTML='<span style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>'+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
       }
     }).catch(function(){});
 }
-// Run after KPI fetch so Jobber data wins if present
-setTimeout(fetchJobberYTD,3000);
-setInterval(fetchJobberYTD,10*60*1000);
+setTimeout(fetchJobberMetrics,2000);
+setInterval(fetchJobberMetrics,10*60*1000);
 // Force fresh OAuth to pick up any newly-added scopes
 function reAuthGoogle(){
   clearToken();
   setTimeout(function(){connectGoogle();},100);
 }
 
-function refreshAll(){fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberYTD();if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}}
+function refreshAll(){fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberMetrics();if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}}
 </script>
 </body>
 </html>
