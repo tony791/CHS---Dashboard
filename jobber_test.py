@@ -23,48 +23,60 @@ def q(query):
     data = r.json()
     if "errors" in data:
         print(f"Errors: {data['errors']}")
+        return {}
     return data.get("data", {})
 
-# Test 1: Quote fields
-print("\n--- Quote fields test ---")
+# Test all possible PaymentRecord fields
+print("\n--- PaymentRecord fields ---")
 result = q("""
 {
-  quotes(first: 3) {
+  invoices(first: 3) {
     nodes {
-      id quoteNumber quoteStatus
-      createdAt sentAt
-      approvedAt
-      client { name }
-      amounts { subtotal }
+      id invoiceNumber invoiceStatus paymentsTotal
+      paymentRecords(first: 5) {
+        nodes {
+          id
+          amount
+          type
+          createdAt
+          adjustedAt
+          enteredBy { name }
+        }
+      }
     }
   }
 }
 """)
 print(result)
 
-# Test 2: Client referral source
-print("\n--- Client referral source ---")
+# Test job source as enum
+print("\n--- Job source enum value ---")
 result2 = q("""
 {
-  clients(first: 3) {
+  jobs(first: 3) {
     nodes {
-      id name
-      leadsource: leadsource
+      jobNumber
+      source
+      quote {
+        quoteNumber
+        quoteStatus
+        createdAt
+        transitionedAt
+      }
     }
   }
 }
 """)
 print(result2)
 
-# Test 3: Payments query
-print("\n--- Payments query ---")
+# Test client leadSource
+print("\n--- Client leadSource field ---")
 result3 = q("""
 {
-  payments(first: 5) {
+  clients(first: 3) {
     nodes {
-      id amount receivedAt
-      paymentType
-      invoice { id invoiceNumber total client { name } }
+      id name
+      leadSource { leadSourceName jobberWebUri }
     }
   }
 }
