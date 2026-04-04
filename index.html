@@ -418,6 +418,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
           <span class="ct">🧠 Smart Notes</span>
           <div style="display:flex;gap:7px;align-items:center;">
             <span id="sn-sheet-badge" style="font-size:9px;font-weight:700;background:rgba(82,192,122,.12);color:var(--green);padding:3px 8px;border-radius:20px;border:1px solid rgba(82,192,122,.3);display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;"></span>Saving to Sheets</span>
+            <span class="bdg" onclick="fixSmartNotesSheet()" title="Apply headers & formatting to the Smart Notes tab" style="cursor:pointer;">🔧 Fix Sheet</span>
             <span class="bdg" onclick="toggleNoteHistory()" id="sn-history-btn" style="cursor:pointer;">📋 History</span>
           </div>
         </div>
@@ -1397,43 +1398,70 @@ var SN_HEADERS=[['Date','Time','Category','Raw Note','AI Summary','Tags','Tasks 
 var SN_HEADERS_WRITTEN=false;
 
 async function ensureSmartNotesHeaders(){
-  if(SN_HEADERS_WRITTEN)return;
+  if(SN_HEADERS_WRITTEN)return true;
+  if(!oauthToken){console.log('Smart Notes: OAuth needed for sheet setup');return false;}
   var snAuth=sheetsAuth();
-  var checkUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1:H1')+snAuth.qs;
   try{
-    var check=await fetch(checkUrl,{headers:snAuth.headers});
-    var checkData=await check.json();
-    if(checkData.error){console.log('Smart Notes tab not found. Create a tab named "Smart Notes" in your Job Tracker sheet.');return false;}
-    var existingVal=(checkData.values||[[]])[0][0]||'';
-    if(!existingVal||existingVal==='Date'){
-      // Write header row with bold formatting
-      var putUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1:H1')+'?valueInputOption=RAW';
-      await fetch(putUrl,{method:'PUT',headers:sheetsWriteHeaders(),body:JSON.stringify({values:SN_HEADERS,majorDimension:'ROWS'})});
-      // Apply bold + background to header via batchUpdate
-      var wh=sheetsWriteHeaders();
-      if(wh['Authorization']){
-        // Get sheet ID for Smart Notes tab
-        var metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'?fields=sheets.properties';
-        var meta=await fetch(metaUrl,{headers:snAuth.headers});
-        var metaData=await meta.json();
-        var tabId=null;
-        (metaData.sheets||[]).forEach(function(s){if(s.properties&&s.properties.title==='Smart Notes')tabId=s.properties.sheetId;});
-        if(tabId!==null){
-          var fmtReq={requests:[
-            {repeatCell:{range:{sheetId:tabId,startRowIndex:0,endRowIndex:1},cell:{userEnteredFormat:{backgroundColor:{red:.239,green:.047,blue:.122},textFormat:{bold:true,foregroundColor:{red:.941,green:.647,blue:0}},horizontalAlignment:'CENTER'}},fields:'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'}},
-            {updateSheetProperties:{properties:{sheetId:tabId,gridProperties:{frozenRowCount:1}},fields:'gridProperties.frozenRowCount'}},
-            {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:3,endIndex:4},properties:{pixelSize:280},fields:'pixelSize'}},
-            {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:4,endIndex:5},properties:{pixelSize:220},fields:'pixelSize'}}
-          ]};
-          await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+':batchUpdate',{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify(fmtReq)});
-        }
+    // Step 1: Get tab's numeric sheetId (needed for batchUpdate)
+    var metaResp=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'?fields=sheets.properties',{headers:snAuth.headers});
+    var metaData=await metaResp.json();
+    var tabId=null;
+    (metaData.sheets||[]).forEach(function(s){if(s.properties&&s.properties.title==='Smart Notes')tabId=s.properties.sheetId;});
+    if(tabId===null){console.log('Smart Notes tab not found — create a tab named exactly "Smart Notes".');return false;}
+
+    // Step 2: Read current A1 to decide what to do
+    var checkResp=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1')+snAuth.qs,{headers:snAuth.headers});
+    var checkData=await checkResp.json();
+    var a1=(((checkData.values||[[]])[0])||[])[0]||'';
+    var hasHeader=(a1==='Date'||a1==='date');
+
+    if(!hasHeader){
+      if(a1!==''){
+        // Data is in row 1 with no header — insert a blank row at top first
+        var insertReq={requests:[{insertDimension:{range:{sheetId:tabId,dimension:'ROWS',startIndex:0,endIndex:1},inheritFromBefore:false}}]};
+        await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+':batchUpdate',{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify(insertReq)});
       }
-      SN_HEADERS_WRITTEN=true;
-    }else{
-      SN_HEADERS_WRITTEN=true;
+      // Write headers to (now-empty) row 1
+      await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A1:H1')+'?valueInputOption=RAW',
+        {method:'PUT',headers:sheetsWriteHeaders(),body:JSON.stringify({values:SN_HEADERS,majorDimension:'ROWS'})});
     }
+
+    // Step 3: Apply formatting (always — idempotent)
+    var fmtReq={requests:[
+      {repeatCell:{range:{sheetId:tabId,startRowIndex:0,endRowIndex:1},cell:{userEnteredFormat:{
+        backgroundColor:{red:.239,green:.047,blue:.122},
+        textFormat:{bold:true,foregroundColor:{red:.941,green:.647,blue:0},fontSize:10},
+        horizontalAlignment:'CENTER',verticalAlignment:'MIDDLE'
+      }},fields:'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'}},
+      {updateSheetProperties:{properties:{sheetId:tabId,gridProperties:{frozenRowCount:1}},fields:'gridProperties.frozenRowCount'}},
+      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'ROWS',startIndex:0,endIndex:1},properties:{pixelSize:28},fields:'pixelSize'}},
+      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:0,endIndex:1},properties:{pixelSize:90},fields:'pixelSize'}},
+      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:1,endIndex:2},properties:{pixelSize:70},fields:'pixelSize'}},
+      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:2,endIndex:3},properties:{pixelSize:90},fields:'pixelSize'}},
+      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:3,endIndex:4},properties:{pixelSize:300},fields:'pixelSize'}},
+      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:4,endIndex:5},properties:{pixelSize:240},fields:'pixelSize'}},
+      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:5,endIndex:6},properties:{pixelSize:140},fields:'pixelSize'}},
+      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:6,endIndex:7},properties:{pixelSize:200},fields:'pixelSize'}},
+      {updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:7,endIndex:8},properties:{pixelSize:80},fields:'pixelSize'}}
+    ]};
+    await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+':batchUpdate',{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify(fmtReq)});
+    console.log('Smart Notes sheet formatted ✓');
+    SN_HEADERS_WRITTEN=true;
     return true;
-  }catch(e){console.log('Smart Notes header check error:',e);return false;}
+  }catch(e){console.log('Smart Notes setup error:',e);return false;}
+}
+
+async function fixSmartNotesSheet(){
+  if(!oauthToken){alert('Connect Google first (OAuth needed to write formatting).');return;}
+  SN_HEADERS_WRITTEN=false; // Force re-run
+  var badge=document.getElementById('sn-sheet-badge');
+  if(badge)badge.innerHTML='<div class="spin" style="width:10px;height:10px;margin-right:4px;"></div>Fixing...';
+  var ok=await ensureSmartNotesHeaders();
+  if(badge){
+    if(ok){badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>Sheet fixed ✓';}
+    else{badge.innerHTML='<span style="color:#e05252;">⚠ Fix failed — check console</span>';}
+    setTimeout(function(){if(badge)badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;margin-right:4px;"></span>Saving to Sheets';},3000);
+  }
 }
 
 async function appendToSmartNotesSheet(note){
@@ -2241,6 +2269,24 @@ async function scanEmails(){
 
     var listResp=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?'+qParam,
       {headers:{'Authorization':'Bearer '+oauthToken}});
+
+    // Handle 403 — either Gmail API not enabled or token lacks gmail scope
+    if(listResp.status===401||listResp.status===403){
+      loading.style.display='none';
+      result.style.display='block';
+      result.innerHTML='<div style="background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.3);border-radius:9px;padding:12px 14px;">'
+        +'<div style="font-size:12px;font-weight:700;color:#e05252;margin-bottom:6px;">📬 Gmail Access Needed</div>'
+        +'<div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">'
+          +'Your Google token needs to be refreshed to include Gmail access. Two quick steps:<br>'
+          +'<strong style="color:var(--cream);">1.</strong> Enable Gmail API in your '
+          +'<a href="https://console.cloud.google.com/apis/library/gmail.googleapis.com" target="_blank" style="color:var(--gold);">Google Cloud Console ↗</a><br>'
+          +'<strong style="color:var(--cream);">2.</strong> Reconnect Google below to get a fresh token'
+        +'</div>'
+        +'<button onclick="reAuthGoogle()" style="background:rgba(240,165,0,.2);border:1px solid rgba(240,165,0,.4);color:var(--gold);border-radius:8px;padding:7px 16px;cursor:pointer;font-family:\'Nunito\',sans-serif;font-weight:700;font-size:12px;">🔄 Reconnect Google</button>'
+        +'</div>';
+      btn.disabled=false;btn.textContent='🔍 Scan';
+      return;
+    }
     var listData=await listResp.json();
     var messages=listData.messages||[];
 
@@ -2324,6 +2370,13 @@ async function scanEmails(){
   }finally{
     btn.disabled=false;btn.textContent='🔍 Scan';
   }
+}
+
+// Force fresh OAuth to pick up any newly-added scopes (e.g. gmail.readonly)
+function reAuthGoogle(){
+  clearToken();
+  // Brief delay so clearToken can run, then redirect to OAuth
+  setTimeout(function(){connectGoogle();},100);
 }
 
 function refreshAll(){fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberYTD();if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}}
