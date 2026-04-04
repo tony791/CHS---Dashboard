@@ -26,21 +26,25 @@ def q(query):
         return {}
     return data.get("data", {})
 
-# Test all possible PaymentRecord fields
-print("\n--- PaymentRecord fields ---")
+# Test client custom fields
+print("\n--- Client custom fields ---")
 result = q("""
 {
-  invoices(first: 3) {
+  clients(first: 5) {
     nodes {
-      id invoiceNumber invoiceStatus paymentsTotal
-      paymentRecords(first: 5) {
-        nodes {
-          id
-          amount
-          type
-          createdAt
-          adjustedAt
-          enteredBy { name }
+      id name
+      customFields {
+        ... on CustomFieldText {
+          label
+          value: valueText
+        }
+        ... on CustomFieldNumeric {
+          label
+          value: valueNumeric
+        }
+        ... on CustomFieldDropdown {
+          label
+          value: valueLabel
         }
       }
     }
@@ -48,37 +52,3 @@ result = q("""
 }
 """)
 print(result)
-
-# Test job source as enum
-print("\n--- Job source enum value ---")
-result2 = q("""
-{
-  jobs(first: 3) {
-    nodes {
-      jobNumber
-      source
-      quote {
-        quoteNumber
-        quoteStatus
-        createdAt
-        transitionedAt
-      }
-    }
-  }
-}
-""")
-print(result2)
-
-# Test client leadSource
-print("\n--- Client leadSource field ---")
-result3 = q("""
-{
-  clients(first: 3) {
-    nodes {
-      id name
-      leadSource { leadSourceName jobberWebUri }
-    }
-  }
-}
-""")
-print(result3)
