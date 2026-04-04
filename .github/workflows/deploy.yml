@@ -26,7 +26,6 @@ jobs:
           HL_TOKEN: ${{ secrets.HL_TOKEN }}
           JOB_TRACKER_SHEET_ID: ${{ secrets.JOB_TRACKER_SHEET_ID }}
           WC_SHEET_ID: ${{ secrets.WC_SHEET_ID }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           python3 << 'PYEOF'
           import os
@@ -37,7 +36,6 @@ jobs:
           html = html.replace('%%HL_TOKEN%%', os.environ['HL_TOKEN'])
           html = html.replace('%%JOB_TRACKER_SHEET_ID%%', os.environ['JOB_TRACKER_SHEET_ID'])
           html = html.replace('%%WC_SHEET_ID%%', os.environ['WC_SHEET_ID'])
-          html = html.replace('%%ANTHROPIC_API_KEY%%', os.environ['ANTHROPIC_API_KEY'])
           with open('index.html', 'w') as f:
               f.write(html)
           print("Secrets injected successfully")
