@@ -1,4 +1,4 @@
-import os, requests
+import os, requests, json
 
 CLIENT_ID = os.environ['JOBBER_CLIENT_ID']
 CLIENT_SECRET = os.environ['JOBBER_CLIENT_SECRET']
@@ -26,29 +26,21 @@ def q(query):
         return {}
     return data.get("data", {})
 
-# Test client custom fields
-print("\n--- Client custom fields ---")
+# Test 1: Client with all possible lead source fields
+print("\n--- Client lead source fields ---")
 result = q("""
 {
   clients(first: 5) {
     nodes {
       id name
       customFields {
-        ... on CustomFieldText {
-          label
-          value: valueText
-        }
-        ... on CustomFieldNumeric {
-          label
-          value: valueNumeric
-        }
-        ... on CustomFieldDropdown {
-          label
-          value: valueLabel
-        }
+        ... on CustomFieldText { label valueText }
+        ... on CustomFieldNumeric { label valueNumeric }
+        ... on CustomFieldDropdown { label selectedOption { label } }
+        ... on CustomFieldArea { label valueArea }
       }
     }
   }
 }
 """)
-print(result)
+print(json.dumps(result, indent=2))
