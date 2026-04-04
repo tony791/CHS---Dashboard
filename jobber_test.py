@@ -35,8 +35,8 @@ result = q("""
       customFields {
         ... on CustomFieldText { label valueText }
         ... on CustomFieldNumeric { label valueNumeric }
-        ... on CustomFieldDropdown { label valueDropdown { value label } }
-        ... on CustomFieldArea { label valueArea { value } }
+        ... on CustomFieldDropdown { label valueDropdown }
+        ... on CustomFieldArea { label valueArea { plainText } }
       }
     }
   }
