@@ -537,7 +537,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
             </div>
             <div class="tfact"><button class="tfcanc" onclick="closeTaskForm()">Cancel</button><button class="tfsave" onclick="saveTask()">Save Task</button></div>
           </div>
-          <div id="task-list" style="display:flex;flex-direction:column;gap:6px;max-height:380px;overflow-y:auto;padding-right:4px;"></div>
+          <div id="task-list" style="display:flex;flex-direction:column;gap:6px;height:350px;overflow-y:auto;padding-right:4px;"></div>
           <div class="tstat" id="task-stats"></div>
         </div>
       </div>
@@ -553,7 +553,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
         </div>
         <div class="cb">
           <!-- Saved meetings list -->
-          <div id="meet-list" style="display:flex;flex-direction:column;gap:7px;max-height:320px;overflow-y:auto;padding-right:4px;">
+          <div id="meet-list" style="display:flex;flex-direction:column;gap:7px;height:280px;overflow-y:auto;padding-right:4px;">
             <div class="empty" id="meet-empty">No upcoming meetings</div>
           </div>
         </div>
@@ -912,7 +912,7 @@ function fetchGoogleTasks(){
         title:gt.title||'Untitled',
         due:due,
         time:'',
-        pri:gt.starred?'high':'',
+        pri:gt.starred===true||gt.starred==='true'?'high':(gt.notes&&gt.notes.includes('⭐')?'high':''),
         cat:'',
         notes:gt.notes||'',
         done:gt.status==='completed',
@@ -924,7 +924,10 @@ function fetchGoogleTasks(){
     // Update existing tasks status from Google
     googleTasks.forEach(function(gt){
       var local=tasks.find(function(t){return t.gTasksId===gt.id;});
-      if(local){local.done=gt.status==='completed';}
+      if(local){
+        local.done=gt.status==='completed';
+        if(gt.starred===true||gt.starred==='true') local.pri='high';
+      }
     });
     saveTasks();
     renderTasks();
