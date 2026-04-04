@@ -26,8 +26,7 @@ def q(query):
         return {}
     return data.get("data", {})
 
-# Test 1: Client with all possible lead source fields
-print("\n--- Client lead source fields ---")
+print("\n--- Client custom fields ---")
 result = q("""
 {
   clients(first: 5) {
@@ -36,8 +35,8 @@ result = q("""
       customFields {
         ... on CustomFieldText { label valueText }
         ... on CustomFieldNumeric { label valueNumeric }
-        ... on CustomFieldDropdown { label selectedOption { label } }
-        ... on CustomFieldArea { label valueArea }
+        ... on CustomFieldDropdown { label valueDropdown { value label } }
+        ... on CustomFieldArea { label valueArea { value } }
       }
     }
   }
