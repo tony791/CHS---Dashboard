@@ -5,7 +5,10 @@
   <meta http-equiv="cache-control" content="no-cache">
   <meta http-equiv="expires" content="0">
   <meta http-equiv="pragma" content="no-cache">
-  <!-- v20260404150901 -->
+  <!-- v20260405001 -->
+<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Columbus Home Solutions — Command Center</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%233D0C1F'/><path d='M32 10 L54 28 L54 54 L10 54 L10 28 Z' fill='none' stroke='%23F0A500' stroke-width='3.5'/><path d='M32 10 L58 30' stroke='%23F0A500' stroke-width='3' stroke-linecap='round'/><path d='M32 10 L6 30' stroke='%23F0A500' stroke-width='3' stroke-linecap='round'/><rect x='24' y='36' width='16' height='18' rx='2' fill='%23F0A500'/></svg>">
@@ -157,6 +160,8 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1900px;margin:
 .titem:hover .tdel{color:rgba(255,255,255,.4);}.tdel:hover{color:var(--red)!important;}
 .tstat{display:flex;gap:14px;font-size:11px;color:var(--muted);padding:8px 0 4px;border-top:1px solid rgba(255,255,255,.06);margin-top:6px;}
 
+.sn-done-btn{flex-shrink:0;background:rgba(82,192,122,.18);border:1px solid rgba(82,192,122,.4);color:var(--green);border-radius:6px;font-size:10px;font-weight:800;padding:3px 9px;cursor:pointer;white-space:nowrap;transition:background .2s;font-family:'Nunito',sans-serif;}
+.sn-done-btn:hover{background:rgba(82,192,122,.38);}
 .sub-add-btn{margin-top:3px;background:none;border:none;color:rgba(255,255,255,.2);font-size:10px;cursor:pointer;padding:0;font-family:'Nunito',sans-serif;transition:color .15s;}
 .sub-add-btn:hover{color:var(--gold);}
 /* NOTES */
@@ -631,6 +636,90 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
 </div>
 
 <script>
+var OAUTH_CLIENT_ID='%%OAUTH_CLIENT_ID%%';
+var OAUTH_SCOPES=[
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/tasks',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/drive.readonly'
+].join(' ');
+
+var oauthToken=null;
+var oauthExpiry=null;
+
+// Load saved token from localStorage
+function loadSavedToken(){
+  var saved=localStorage.getItem('chs_oauth');
+  if(!saved)return false;
+  try{
+    var data=JSON.parse(saved);
+    if(data.expiry&&Date.now()<data.expiry){
+      oauthToken=data.token;
+      oauthExpiry=data.expiry;
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+function saveToken(token,expiresIn){
+  oauthToken=token;
+  oauthExpiry=Date.now()+(expiresIn*1000);
+  localStorage.setItem('chs_oauth',JSON.stringify({token:oauthToken,expiry:oauthExpiry}));
+}
+
+function clearToken(){
+  oauthToken=null;oauthExpiry=null;
+  localStorage.removeItem('chs_oauth');
+}
+
+// Check if token is valid
+function isAuthenticated(){return oauthToken&&Date.now()<oauthExpiry;}
+
+// Auth headers for all Google API calls
+function authHeaders(){return{'Authorization':'Bearer '+oauthToken,'Content-Type':'application/json'};}
+
+// Launch OAuth popup
+function connectGoogle(){
+  var redirectUri='https://dashboard.homesolutionsar.com';
+  var params=new URLSearchParams({
+    client_id:OAUTH_CLIENT_ID,
+    redirect_uri:redirectUri,
+    response_type:'token',
+    scope:OAUTH_SCOPES,
+    include_granted_scopes:'true',
+    prompt:'consent'
+  });
+  // Full page redirect instead of popup — bypasses all popup blockers
+  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params.toString();
+}
+
+
+// ── OAUTH CONFIGURATION ─────────────────────────────────────────────────────────────────────
+// (Defined first so connectGoogle is always available even if something below crashes)
+
+// ── RUNTIME ERROR TRAP ───────────────────────────────────────────────────────────────────────
+window.onerror=function(msg,src,line,col,err){
+  console.error('CHS Dashboard JS error — line '+line+': '+msg);
+  // Show a visible red banner at top of page
+  var banner=document.getElementById('js-error-banner');
+  if(!banner){
+    banner=document.createElement('div');
+    banner.id='js-error-banner';
+    banner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#b00020;color:#fff;font-family:monospace;font-size:12px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;';
+    banner.innerHTML='<span>⚠️ JS Error (line '+line+'): '+msg+'</span><button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;padding:2px 8px;border-radius:3px;">✕</button>';
+    document.body.insertBefore(banner,document.body.firstChild);
+  }
+  // Also update the connect button if it's still in its default state
+  var btn=document.getElementById('oauth-connect-btn');
+  if(btn&&(btn.textContent.indexOf('Connect')!==-1||btn.textContent.indexOf('Google')!==-1)){
+    btn.title='JS Error at line '+line+': '+msg+'\nOpen DevTools (F12) → Console for details';
+    btn.style.borderColor='rgba(224,82,82,.7)';
+  }
+  return false;
+};
+
 // ── WEATHER ──────────────────────────────────────────
 var WC_SHEET_ID='%%WC_SHEET_ID%%';
 var WI={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',77:'🌨',80:'🌦',81:'🌧',82:'⛈',85:'🌨',86:'🌨',95:'⛈',96:'⛈',99:'⛈'};
@@ -1053,7 +1142,8 @@ function renderTasks(){
 
   var html='';
   filtered.forEach(function(t){
-    if(t.isSubtask&&t.parentId)return;
+    // Skip subtasks — rendered inline under their parent
+    if(t.isSubtask&&(t.parentId||t._parentLid))return;
     var i=tasks.indexOf(t);
     var due=getDue(t.due,t.time);
     var pl=priLbl(t.pri);var pc=priCls(t.pri);
@@ -1717,11 +1807,7 @@ function loadNoteHistory(){
               (taskCount>0?'<span style="font-size:9px;color:var(--green);">✅ '+taskCount+' task'+(taskCount>1?'s':'')+'</span>':'')+
               '<span style="font-size:9px;color:var(--muted);">'+(r[0]||'')+' '+(r[1]||'')+'</span>'+
             '</div>'+
-            '<button onclick="archiveNote('+sheetRow+',this)" '+
-              'style="flex-shrink:0;background:rgba(82,192,122,.18);border:1px solid rgba(82,192,122,.4);color:var(--green);'+
-              'border-radius:6px;font-size:10px;font-weight:800;padding:3px 9px;cursor:pointer;white-space:nowrap;transition:all .2s;"'+
-              'onmouseover="this.style.background='rgba(82,192,122,.35)'" onmouseout="this.style.background='rgba(82,192,122,.18)'"'+
-              '>✓ Done</button>'+
+            '<button onclick="archiveNote('+sheetRow+',this)" class="sn-done-btn">✓ Done</button>'+
           '</div>'+
           '<div style="font-size:12px;color:var(--cream);line-height:1.45;cursor:pointer;" onclick="expandNote(this.parentElement)">'+summary+'</div>'+
           '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+(r[3]||'')+'</div>'+
@@ -1744,10 +1830,7 @@ function renderLocalHistory(list){
           '<span style="font-size:9px;font-weight:800;background:rgba(240,165,0,.15);color:var(--gold);padding:2px 8px;border-radius:20px;">'+(n.category||'General')+'</span>'+
           '<span style="font-size:9px;color:var(--muted);">'+n.date+' '+n.time+'</span>'+
         '</div>'+
-        '<button onclick="archiveLocalNote('+idx+',this)" '+
-          'style="flex-shrink:0;background:rgba(82,192,122,.18);border:1px solid rgba(82,192,122,.4);color:var(--green);'+
-          'border-radius:6px;font-size:10px;font-weight:800;padding:3px 9px;cursor:pointer;white-space:nowrap;"'+
-          '>✓ Done</button>'+
+        '<button onclick="archiveLocalNote('+idx+',this)" class="sn-done-btn">✓ Done</button>'+
       '</div>'+
       '<div style="font-size:12px;color:var(--cream);line-height:1.45;cursor:pointer;" onclick="expandNote(this.parentElement)">'+summary+'</div>'+
       '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+n.rawNote+'</div>'+
@@ -2035,65 +2118,6 @@ function sheetsWriteHeaders(){
 }
 
 // ── OAUTH CONFIGURATION ────────────────────────────────
-var OAUTH_CLIENT_ID='%%OAUTH_CLIENT_ID%%';
-var OAUTH_SCOPES=[
-  'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/tasks',
-  'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/spreadsheets',
-  'https://www.googleapis.com/auth/drive.readonly'
-].join(' ');
-
-var oauthToken=null;
-var oauthExpiry=null;
-
-// Load saved token from localStorage
-function loadSavedToken(){
-  var saved=localStorage.getItem('chs_oauth');
-  if(!saved)return false;
-  try{
-    var data=JSON.parse(saved);
-    if(data.expiry&&Date.now()<data.expiry){
-      oauthToken=data.token;
-      oauthExpiry=data.expiry;
-      return true;
-    }
-  }catch(e){}
-  return false;
-}
-
-function saveToken(token,expiresIn){
-  oauthToken=token;
-  oauthExpiry=Date.now()+(expiresIn*1000);
-  localStorage.setItem('chs_oauth',JSON.stringify({token:oauthToken,expiry:oauthExpiry}));
-}
-
-function clearToken(){
-  oauthToken=null;oauthExpiry=null;
-  localStorage.removeItem('chs_oauth');
-}
-
-// Check if token is valid
-function isAuthenticated(){return oauthToken&&Date.now()<oauthExpiry;}
-
-// Auth headers for all Google API calls
-function authHeaders(){return{'Authorization':'Bearer '+oauthToken,'Content-Type':'application/json'};}
-
-// Launch OAuth popup
-function connectGoogle(){
-  var redirectUri='https://dashboard.homesolutionsar.com';
-  var params=new URLSearchParams({
-    client_id:OAUTH_CLIENT_ID,
-    redirect_uri:redirectUri,
-    response_type:'token',
-    scope:OAUTH_SCOPES,
-    include_granted_scopes:'true',
-    prompt:'consent'
-  });
-  // Full page redirect instead of popup — bypasses all popup blockers
-  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params.toString();
-}
-
 // Handle token from redirect (implicit flow — token in URL hash)
 function checkOAuthRedirect(){
   var hash=window.location.hash;
