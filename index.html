@@ -1053,18 +1053,19 @@ function saveTasks(){localStorage.setItem('chs_tasks',JSON.stringify(tasks));}
 // ── Sync scaffold: called after OAuth connects ──────────
 // These functions are structured & ready — OAuth will fill them in
 function syncTaskToGoogle(task,parentId){
-  if(!gTasksConnected||!gTasksAccessToken)return;
+  var token=gTasksAccessToken||oauthToken;
+  if(!token)return;
   var body={title:task.title,notes:task.notes||'',status:task.done?'completed':'needsAction'};
   if(task.due&&task.time){body.due=new Date(task.due+'T'+task.time+':00').toISOString();}
   else if(task.due){body.due=new Date(task.due+'T00:00:00').toISOString();}
   var method=task.gTasksId?'PATCH':'POST';
   var listId=task.gTasksList||'@default';
   var url='https://tasks.googleapis.com/tasks/v1/lists/'+listId+'/tasks'+(task.gTasksId?'/'+task.gTasksId:'');
-  // For new tasks with a parent, add parent as query param
   if(!task.gTasksId&&parentId)url+='?parent='+encodeURIComponent(parentId);
-  fetch(url,{method:method,headers:{'Authorization':'Bearer '+gTasksAccessToken,'Content-Type':'application/json'},body:JSON.stringify(body)})
+  fetch(url,{method:method,headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){return r.json();})
     .then(function(d){
+      if(d.error){console.log('Tasks API error:',d.error.message,'— may need to reconnect Google for Tasks scope');return;}
       if(d.id){
         task.gTasksId=d.id;
         if(parentId&&!task.parentId)task.parentId=parentId;
@@ -1471,7 +1472,7 @@ async function processNote(){
       };
       tasks.unshift(parentTask);
       expandedTasks[0]=true;  // auto-expand so subtasks show immediately
-      if(gTasksConnected)syncTaskToGoogle(parentTask);
+      if(oauthToken)syncTaskToGoogle(parentTask);
 
       // Create remaining tasks as subtasks (inserted right after parent)
       extractedTasks.slice(1).forEach(function(t,idx){
@@ -1493,7 +1494,7 @@ async function processNote(){
       });
 
       // After a short delay, also link via Google Tasks ID if sync completed
-      if(gTasksConnected&&extractedTasks.length>1){
+      if(oauthToken&&extractedTasks.length>1){
         setTimeout(function(){
           var children=tasks.filter(function(t){return t._parentLid===parentTask._lid&&t.isSubtask;});
           children.forEach(function(child){
