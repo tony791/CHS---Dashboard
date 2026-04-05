@@ -1652,18 +1652,18 @@ async function recreateSmartNotesSheet(silent){
 
     // 2 ─ Read all existing data (skip any existing header row)
     // Use OAuth token only — don't mix ?key= with Authorization header (causes 400)
-    var dataR=await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A1:H500'),{headers:{'Authorization':'Bearer '+oauthToken}});
+    var dataR=await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A1:I500'),{headers:{'Authorization':'Bearer '+oauthToken}});
     var dataD=await dataR.json();
     var allRows=(dataD.values||[]);
     // Strip any header rows (where A = "Date")
     var dataRows=allRows.filter(function(r){return r[0]&&r[0]!=='Date'&&r[0]!=='date';});
 
     // 3 ─ Clear sheet
-    await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A:H')+':clear',{method:'POST',headers:sheetsWriteHeaders(),body:'{}'});
+    await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A:I')+':clear',{method:'POST',headers:sheetsWriteHeaders(),body:'{}'});
 
     // 4 ─ Write header + data rows back
     var writeValues=[['Date','Time','Category','Raw Note','AI Summary','Tags','Tasks Extracted','Task Count','Status']].concat(dataRows);
-    await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A1:H'+(writeValues.length))+'?valueInputOption=RAW',
+    await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A1:I'+(writeValues.length))+'?valueInputOption=RAW',
       {method:'PUT',headers:sheetsWriteHeaders(),body:JSON.stringify({values:writeValues,majorDimension:'ROWS'})});
 
     // 5 ─ Build batchUpdate: layout + header style + data row colours + wrapping
@@ -1725,7 +1725,7 @@ async function recreateSmartNotesSheet(silent){
     // Using CUSTOM_FORMULA so it highlights the whole row
     var cfRules=Object.keys(SN_CAT_COLORS).map(function(cat,idx){
       return{addConditionalFormatRule:{rule:{
-        ranges:[{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:8}],
+        ranges:[{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:9}],
         booleanRule:{
           condition:{type:'CUSTOM_FORMULA',values:[{userEnteredValue:'=$C2="'+cat+'"'}]},
           format:{backgroundColor:SN_CAT_COLORS[cat]}
@@ -1736,7 +1736,7 @@ async function recreateSmartNotesSheet(silent){
 
     // Alternating light grey stripe for even rows
     requests.push({addConditionalFormatRule:{rule:{
-      ranges:[{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:8}],
+      ranges:[{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:9}],
       booleanRule:{
         condition:{type:'CUSTOM_FORMULA',values:[{userEnteredValue:'=ISEVEN(ROW())'}]},
         format:{backgroundColor:{red:.91,green:.91,blue:.91}}
@@ -1745,7 +1745,7 @@ async function recreateSmartNotesSheet(silent){
 
     // Thin bottom border on every data row
     requests.push({repeatCell:{
-      range:{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:8},
+      range:{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:9},
       cell:{userEnteredFormat:{borders:{bottom:{style:'SOLID',color:{red:.3,green:.1,blue:.15},width:1}}}},
       fields:'userEnteredFormat.borders'
     }});
