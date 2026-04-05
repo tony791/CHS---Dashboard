@@ -1662,7 +1662,7 @@ async function recreateSmartNotesSheet(silent){
     await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A:H')+':clear',{method:'POST',headers:sheetsWriteHeaders(),body:'{}'});
 
     // 4 ─ Write header + data rows back
-    var writeValues=[['Date','Time','Category','Raw Note','AI Summary','Tags','Tasks Extracted','Task Count']].concat(dataRows);
+    var writeValues=[['Date','Time','Category','Raw Note','AI Summary','Tags','Tasks Extracted','Task Count','Status']].concat(dataRows);
     await fetch(base+'/values/'+encodeURIComponent('Smart Notes!A1:H'+(writeValues.length))+'?valueInputOption=RAW',
       {method:'PUT',headers:sheetsWriteHeaders(),body:JSON.stringify({values:writeValues,majorDimension:'ROWS'})});
 
@@ -1686,10 +1686,28 @@ async function recreateSmartNotesSheet(silent){
     // Header row height
     requests.push({updateDimensionProperties:{range:{sheetId:tabId,dimension:'ROWS',startIndex:0,endIndex:1},properties:{pixelSize:30},fields:'pixelSize'}});
 
-    // Column widths: Date, Time, Category, Raw Note, AI Summary, Tags, Tasks Extracted, Count
-    [90,72,100,310,250,150,210,68].forEach(function(w,i){
+    // Column widths: Date, Time, Category, Raw Note, AI Summary, Tags, Tasks Extracted, Count, Status
+    [90,72,100,310,250,150,210,68,100].forEach(function(w,i){
       requests.push({updateDimensionProperties:{range:{sheetId:tabId,dimension:'COLUMNS',startIndex:i,endIndex:i+1},properties:{pixelSize:w},fields:'pixelSize'}});
     });
+
+    // Status dropdown validation on col I (index 8), rows 2+
+    requests.push({setDataValidation:{range:{sheetId:tabId,startRowIndex:1,startColumnIndex:8,endColumnIndex:9},
+      rule:{condition:{type:'ONE_OF_LIST',values:[
+        {userEnteredValue:'Needs Processing'},
+        {userEnteredValue:'In Progress'},
+        {userEnteredValue:'Done'},
+        {userEnteredValue:'Archived'}
+      ]},showCustomUi:true,strict:false}}});
+
+    // Conditional formatting: grey out Done rows (col I = "Done")
+    requests.push({addConditionalFormatRule:{rule:{
+      ranges:[{sheetId:tabId,startRowIndex:1,startColumnIndex:0,endColumnIndex:9}],
+      booleanRule:{
+        condition:{type:'CUSTOM_FORMULA',values:[{userEnteredValue:'=$I2="Done"'}]},
+        format:{backgroundColor:{red:.85,green:.85,blue:.85},textFormat:{foregroundColor:{red:.6,green:.6,blue:.6}}}
+      }
+    },index:Object.keys(SN_CAT_COLORS).length+2}});
 
     // Wrap text in Raw Note (col D=3) and AI Summary (col E=4)
     requests.push({repeatCell:{
@@ -1758,8 +1776,8 @@ async function fixSmartNotesSheet(){
 async function appendToSmartNotesSheet(note){
   await ensureSmartNotesReady();
   // Append the data row (always after headers)
-  var row=[[note.date,note.time,note.category,note.rawNote,note.summary,note.tags,note.tasksExtracted,note.taskCount]];
-  var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A:H')+':append?valueInputOption=RAW';
+  var row=[[note.date,note.time,note.category,note.rawNote,note.summary,note.tags,note.tasksExtracted,note.taskCount,'Needs Processing']];
+  var appendUrl='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A:I')+':append?valueInputOption=RAW';
   try{
     var appendResp=await fetch(appendUrl,{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify({values:row,majorDimension:'ROWS'})});
     var appendData=await appendResp.json();
@@ -1788,36 +1806,90 @@ function loadNoteHistory(){
   if(!list)return;
   list.innerHTML='<div class="empty" style="padding:8px 0;"><div class="spin" style="margin:0 auto 6px;"></div>Loading notes...</div>';
 
-  if(!oauthToken){
-    renderLocalHistory(list);
-    return;
-  }
+  if(!oauthToken){renderLocalHistory(list);return;}
 
-  fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A2:H200'),
+  // Read A:I so we get the Status column too
+  fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A2:I200'),
     {headers:{'Authorization':'Bearer '+oauthToken}})
     .then(function(r){return r.json();})
     .then(function(d){
       if(d.error){renderLocalHistory(list);return;}
-      var rows=(d.values||[]).filter(function(r){return r[0]&&r[0]!=='Date';});
-      if(!rows.length){list.innerHTML='<div class="empty">No notes yet — write one above!</div>';return;}
+      var allRows=(d.values||[]).filter(function(r){return r[0]&&r[0]!=='Date';});
+      if(!allRows.length){list.innerHTML='<div class="empty">No notes yet — write one above!</div>';return;}
 
-      // rows come oldest-first; reverse for newest-first, tracking original sheet row
-      var indexed=rows.map(function(r,i){return{r:r,sheetRow:i+2};});
-      indexed.reverse();
+      // Separate Done/Archived rows from active rows
+      var doneRows=[], activeIndexed=[];
+      allRows.forEach(function(r,i){
+        var status=(r[8]||'').trim();
+        if(status==='Done'||status==='Archived'){
+          doneRows.push({r:r,sheetRow:i+2});
+        }else{
+          activeIndexed.push({r:r,sheetRow:i+2});
+        }
+      });
 
-      list.innerHTML=indexed.map(function(item){
+      // Auto-archive any Done rows found (fire-and-forget)
+      if(doneRows.length>0){
+        autoArchiveDoneRows(doneRows).then(function(){
+          // Re-load after archiving completes
+          loadNoteHistory();
+        });
+        list.innerHTML='<div class="empty" style="padding:8px 0;"><div class="spin" style="margin:0 auto 6px;"></div>Archiving '+doneRows.length+' completed note'+(doneRows.length>1?'s':'')+'...</div>';
+        return;
+      }
+
+      if(!activeIndexed.length){list.innerHTML='<div class="empty">No active notes — all done! 🎉</div>';return;}
+
+      // Newest first
+      activeIndexed.reverse();
+      list.innerHTML=activeIndexed.map(function(item){
         var r=item.r, sheetRow=item.sheetRow;
         var taskCount=parseInt(r[7])||0;
+        var status=r[8]||'Needs Processing';
         var summary=r[4]&&r[4]!=='(Not processed)'?r[4]:(r[3]||'').substring(0,80)+((r[3]||'').length>80?'...':'');
         var doneBtn='<button onclick="archiveNote('+sheetRow+',this)" class="sn-done-btn" style="flex-shrink:0;">✓ Done</button>';
+        var statusColor=status==='Needs Processing'?'rgba(224,82,82,.7)':status==='In Progress'?'var(--gold)':'var(--muted)';
         return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;margin-bottom:2px;" data-sheet-row="'+sheetRow+'">'+
-          buildNoteCard(summary,r[2],r[0]||'',r[1]||'',taskCount,r[3]||'',doneBtn)+
+          buildNoteCard(summary,r[2],r[0]||'',r[1]||'',taskCount,r[3]||'',
+            '<div style="display:flex;gap:5px;align-items:center;flex-shrink:0;">'+
+            '<span style="font-size:9px;color:'+statusColor+';font-weight:700;">'+status+'</span>'+
+            doneBtn+'</div>')+
         '</div>';
       }).join('');
     })
     .catch(function(){renderLocalHistory(list);});
 }
 
+// Archive multiple rows at once — used when auto-scanning Done status
+async function autoArchiveDoneRows(doneRows){
+  if(!oauthToken)return;
+  try{
+    await ensureArchiveTab();
+    var base='https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID;
+
+    // Append all done rows to Archived Notes
+    var archiveValues=doneRows.map(function(item){
+      var r=item.r;
+      return[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],new Date().toLocaleDateString('en-US')];
+    });
+    await fetch(base+'/values/'+encodeURIComponent('Archived Notes!A:I')+':append?valueInputOption=RAW',
+      {method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify({values:archiveValues,majorDimension:'ROWS'})});
+
+    // Delete rows in reverse order (highest row first so indices don't shift)
+    var metaResp=await fetch(base+'?fields=sheets.properties',{headers:sheetsWriteHeaders()});
+    var metaData=await metaResp.json();
+    var tabId=null;
+    (metaData.sheets||[]).forEach(function(s){if(s.properties&&s.properties.title==='Smart Notes')tabId=s.properties.sheetId;});
+    if(tabId===null)return;
+
+    // Sort descending so we delete from bottom up
+    var sortedRows=doneRows.slice().sort(function(a,b){return b.sheetRow-a.sheetRow;});
+    var deleteRequests=sortedRows.map(function(item){
+      return{deleteDimension:{range:{sheetId:tabId,dimension:'ROWS',startIndex:item.sheetRow-1,endIndex:item.sheetRow}}};
+    });
+    await fetch(base+':batchUpdate',{method:'POST',headers:sheetsWriteHeaders(),body:JSON.stringify({requests:deleteRequests})});
+  }catch(e){console.error('Auto-archive error:',e);}
+}
 function renderLocalHistory(list){
   if(!snNotes.length){list.innerHTML='<div class="empty">No notes yet</div>';return;}
   list.innerHTML=snNotes.map(function(n,idx){
