@@ -982,19 +982,25 @@ function syncTaskToGoogle(task,parentId){
 }
 
 // Create a subtask under a parent task
+function makeLid(){return '_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);}
+
 function addSubtask(parentIdx){
   var parent=tasks[parentIdx];
   if(!parent)return;
   var title=prompt('Subtask title:');
   if(!title||!title.trim())return;
+  // Ensure parent has a stable local ID
+  if(!parent._lid){parent._lid=makeLid();saveTasks();}
   var subtask={
     title:title.trim(),due:'',time:'',pri:'',cat:parent.cat||'',notes:'',
     done:false,created:new Date().toISOString(),
     gTasksId:null,gTasksList:parent.gTasksList||'@default',
-    parentId:parent.gTasksId||null,
+    parentId:parent.gTasksId||null,   // Google Tasks parent (filled later)
+    _parentLid:parent._lid,            // local fallback — always reliable
     isSubtask:true
   };
   tasks.splice(parentIdx+1,0,subtask);
+  expandedTasks[parentIdx]=true;  // auto-expand parent
   saveTasks();renderTasks();
   if(gTasksConnected&&parent.gTasksId){
     syncTaskToGoogle(subtask,parent.gTasksId);
@@ -1033,13 +1039,16 @@ function renderTasks(){
   filtered=filtered.filter(function(t){return !t.done;});
   if(!filtered.length){list.innerHTML='<div class="empty">No tasks'+(tFilter!=='all'?' matching this filter':'')+'</div>';renderStats();return;}
 
-  // Build parent→children lookup
+  // Build parent→children lookup — uses gTasksId OR local _parentLid
   var childrenOf={};
   filtered.forEach(function(t){
-    if(t.isSubtask&&t.parentId){
-      var par=tasks.find(function(p){return p.gTasksId===t.parentId;});
-      if(par){var pi=tasks.indexOf(par);if(!childrenOf[pi])childrenOf[pi]=[];childrenOf[pi].push(t);}
-    }
+    if(!t.isSubtask)return;
+    var par=null;
+    // First try Google Tasks parent ID
+    if(t.parentId) par=tasks.find(function(p){return p.gTasksId===t.parentId;});
+    // Fallback: local _lid (works for tasks not yet synced)
+    if(!par&&t._parentLid) par=tasks.find(function(p){return p._lid===t._parentLid;});
+    if(par){var pi=tasks.indexOf(par);if(!childrenOf[pi])childrenOf[pi]=[];childrenOf[pi].push(t);}
   });
 
   var html='';
@@ -1363,9 +1372,11 @@ async function processNote(){
         done:false,
         created:new Date().toISOString(),
         gTasksId:null,gTasksList:'@default',
+        _lid:makeLid(),  // stable local ID for parent matching
         parentId:null,isSubtask:false,fromNote:true
       };
       tasks.unshift(parentTask);
+      expandedTasks[0]=true;  // auto-expand so subtasks show immediately
       if(gTasksConnected)syncTaskToGoogle(parentTask);
 
       // Create remaining tasks as subtasks (inserted right after parent)
@@ -1380,20 +1391,19 @@ async function processNote(){
           done:false,
           created:new Date().toISOString(),
           gTasksId:null,gTasksList:'@default',
-          parentId:null, // will be set once parentTask gets its gTasksId
-          isSubtask:true,fromNote:true,
-          _pendingParent:true // flag to link after parent syncs
+          parentId:null,
+          _parentLid:parentTask._lid,  // reliable local link — works immediately
+          isSubtask:true,fromNote:true
         };
         tasks.splice(1+idx,0,subtask);
       });
 
-      // After a short delay, link subtasks to parent's Google Tasks ID
+      // After a short delay, also link via Google Tasks ID if sync completed
       if(gTasksConnected&&extractedTasks.length>1){
         setTimeout(function(){
-          var children=tasks.filter(function(t){return t._pendingParent&&t.fromNote;});
+          var children=tasks.filter(function(t){return t._parentLid===parentTask._lid&&t.isSubtask;});
           children.forEach(function(child){
-            delete child._pendingParent;
-            if(parentTask.gTasksId){
+            if(parentTask.gTasksId&&!child.parentId){
               child.parentId=parentTask.gTasksId;
               syncTaskToGoogle(child,parentTask.gTasksId);
             }
@@ -1665,55 +1675,81 @@ async function appendToSmartNotesSheet(note){
 
 function loadNoteHistory(){
   var list=document.getElementById('sn-history-list');
-  list.innerHTML='<div class="empty" style="padding:8px 0;"><div class="spin" style="margin:0 auto 6px;"></div>Loading...</div>';
+  list.innerHTML='<div class="empty" style="padding:8px 0;"><div class="spin" style="margin:0 auto 6px;"></div>Loading notes...</div>';
 
-  // Use OAuth when available — API key alone often fails on private sheets
-  var hdrs=oauthToken?{'Authorization':'Bearer '+oauthToken}:{};
-  var qs=oauthToken?'':'?key='+API_KEY;
+  if(!oauthToken){
+    console.log('Smart Notes history: no OAuth token, using localStorage');
+    renderLocalHistory(list);
+    return;
+  }
 
-  fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A2:H100')+qs,{headers:hdrs})
+  fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A2:H200'),
+    {headers:{'Authorization':'Bearer '+oauthToken}})
     .then(function(r){return r.json();})
     .then(function(d){
-      if(d.error){renderLocalHistory(list);return;}
-      var rows=(d.values||[]).reverse();
+      if(d.error){
+        console.log('Smart Notes sheet error:',d.error.message);
+        renderLocalHistory(list);
+        return;
+      }
+      var allRows=d.values||[];
+      // Filter out any accidental header rows
+      var rows=allRows.filter(function(r){return r[0]&&r[0]!=='Date';});
+      console.log('Smart Notes loaded '+rows.length+' rows from sheet');
       if(!rows.length){list.innerHTML='<div class="empty">No notes yet — write one above!</div>';return;}
-      list.innerHTML=rows.map(function(r,idx){
-        var realIdx=rows.length-idx;
-        var sheetRow=realIdx+1;
-        var taskCount=r[7]||0;
+
+      // Rows come in oldest-first; reverse for newest-first display
+      // Track original 1-based sheet row (row 1 = header, row 2 = first data)
+      var indexed=rows.map(function(r,i){return{r:r,sheetRow:i+2};});
+      indexed.reverse();
+
+      list.innerHTML=indexed.map(function(item){
+        var r=item.r, sheetRow=item.sheetRow;
+        var taskCount=parseInt(r[7])||0;
         var catColor=SN_CAT_COLORS[r[2]]||null;
-        var catStyle=catColor?'background:rgba('+Math.round(catColor.red*255)+','+Math.round(catColor.green*255)+','+Math.round(catColor.blue*255)+',.25);color:rgba(0,0,0,.75);':'background:rgba(240,165,0,.15);color:var(--gold);';
+        var catBg=catColor?'rgba('+Math.round(catColor.red*255)+','+Math.round(catColor.green*255)+','+Math.round(catColor.blue*255)+',.3)':'rgba(240,165,0,.15)';
+        var catFg=catColor?'rgba(0,0,0,.8)':'var(--gold)';
+        var summary=r[4]&&r[4]!=='(Not processed)'?r[4]:(r[3]||'').substring(0,80)+((r[3]||'').length>80?'...':'');
         return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;" data-sheet-row="'+sheetRow+'">'+
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'+
-            '<div style="display:flex;gap:6px;align-items:center;">'+
-              '<span style="font-size:9px;font-weight:800;padding:1px 7px;border-radius:20px;'+catStyle+'">'+(r[2]||'General')+'</span>'+
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">'+
+            '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'+
+              '<span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:20px;background:'+catBg+';color:'+catFg+';">'+(r[2]||'General')+'</span>'+
               (taskCount>0?'<span style="font-size:9px;color:var(--green);">✅ '+taskCount+' task'+(taskCount>1?'s':'')+'</span>':'')+
+              '<span style="font-size:9px;color:var(--muted);">'+(r[0]||'')+' '+(r[1]||'')+'</span>'+
             '</div>'+
-            '<div style="display:flex;align-items:center;gap:8px;">'+
-              '<span style="font-size:10px;color:var(--muted);">'+(r[0]||'')+' '+(r[1]||'')+'</span>'+
-              '<button onclick="archiveNote('+sheetRow+',this)" style="background:rgba(82,192,122,.15);border:1px solid rgba(82,192,122,.3);color:var(--green);border-radius:5px;font-size:9px;font-weight:700;padding:2px 7px;cursor:pointer;transition:all .2s;" title="Mark as done & archive">✓ Done</button>'+
-            '</div>'+
+            '<button onclick="archiveNote('+sheetRow+',this)" '+
+              'style="flex-shrink:0;background:rgba(82,192,122,.18);border:1px solid rgba(82,192,122,.4);color:var(--green);'+
+              'border-radius:6px;font-size:10px;font-weight:800;padding:3px 9px;cursor:pointer;white-space:nowrap;transition:all .2s;"'+
+              'onmouseover="this.style.background='rgba(82,192,122,.35)'" onmouseout="this.style.background='rgba(82,192,122,.18)'"'+
+              '>✓ Done</button>'+
           '</div>'+
-          '<div style="font-size:12px;color:var(--cream);line-height:1.4;cursor:pointer;" onclick="expandNote(this.parentElement)">'+(r[4]&&r[4]!=='(Not processed)'?r[4]:(r[3]||'').substring(0,80)+((r[3]||'').length>80?'...':''))+'</div>'+
+          '<div style="font-size:12px;color:var(--cream);line-height:1.45;cursor:pointer;" onclick="expandNote(this.parentElement)">'+summary+'</div>'+
           '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+(r[3]||'')+'</div>'+
         '</div>';
       }).join('');
     })
-    .catch(function(){renderLocalHistory(list);});
+    .catch(function(e){
+      console.log('Smart Notes fetch error:',e);
+      renderLocalHistory(list);
+    });
 }
 
 function renderLocalHistory(list){
   if(!snNotes.length){list.innerHTML='<div class="empty">No notes yet</div>';return;}
   list.innerHTML=snNotes.map(function(n,idx){
+    var summary=n.summary&&n.summary!=='(Not processed)'?n.summary:n.rawNote.substring(0,80)+(n.rawNote.length>80?'...':'');
     return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'+
-        '<span style="font-size:9px;font-weight:800;background:rgba(240,165,0,.15);color:var(--gold);padding:1px 7px;border-radius:20px;">'+(n.category||'General')+'</span>'+
-        '<div style="display:flex;align-items:center;gap:8px;">'+
-          '<span style="font-size:10px;color:var(--muted);">'+n.date+' '+n.time+'</span>'+
-          '<button onclick="archiveLocalNote('+idx+',this)" style="background:rgba(82,192,122,.15);border:1px solid rgba(82,192,122,.3);color:var(--green);border-radius:5px;font-size:9px;font-weight:700;padding:2px 7px;cursor:pointer;" title="Mark as done">✓ Done</button>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">'+
+        '<div style="display:flex;gap:6px;align-items:center;">'+
+          '<span style="font-size:9px;font-weight:800;background:rgba(240,165,0,.15);color:var(--gold);padding:2px 8px;border-radius:20px;">'+(n.category||'General')+'</span>'+
+          '<span style="font-size:9px;color:var(--muted);">'+n.date+' '+n.time+'</span>'+
         '</div>'+
+        '<button onclick="archiveLocalNote('+idx+',this)" '+
+          'style="flex-shrink:0;background:rgba(82,192,122,.18);border:1px solid rgba(82,192,122,.4);color:var(--green);'+
+          'border-radius:6px;font-size:10px;font-weight:800;padding:3px 9px;cursor:pointer;white-space:nowrap;"'+
+          '>✓ Done</button>'+
       '</div>'+
-      '<div style="font-size:12px;color:var(--cream);line-height:1.4;cursor:pointer;" onclick="expandNote(this.parentElement)">'+(n.summary&&n.summary!=='(Not processed)'?n.summary:n.rawNote.substring(0,80)+(n.rawNote.length>80?'...':''))+'</div>'+
+      '<div style="font-size:12px;color:var(--cream);line-height:1.45;cursor:pointer;" onclick="expandNote(this.parentElement)">'+summary+'</div>'+
       '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+n.rawNote+'</div>'+
     '</div>';
   }).join('');
@@ -1723,8 +1759,8 @@ function archiveLocalNote(idx,btn){
   btn.textContent='✓';btn.disabled=true;
   snNotes.splice(idx,1);
   localStorage.setItem('chs_smart_notes',JSON.stringify(snNotes));
-  var card=btn.parentElement;
-  while(card&&!card.style.background)card=card.parentElement;
+  var card=btn.closest('[data-sheet-row], div[style]');
+  if(!card)card=btn.parentElement.parentElement;
   if(card){card.style.transition='opacity .4s';card.style.opacity='0';setTimeout(function(){card.remove();},420);}
 }
 
