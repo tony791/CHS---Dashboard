@@ -1030,7 +1030,11 @@ function fetchGoogleTasks(){
         created:gt.updated||new Date().toISOString(),
         gTasksId:gt.id,
         gTasksList:gt._listId,
-        parentId:gt.parent||null  // ← capture parent relationship
+        parentId:gt.parent||null,
+        // Preserve local relationship fields — critical for subtask display
+        isSubtask:!!(gt.parent)||(existing?!!existing.isSubtask:false),
+        _lid:existing?existing._lid:null,
+        _parentLid:existing?existing._parentLid:null
       };
     });
     tasks=localOnly.concat(googleTaskObjects);
@@ -1763,12 +1767,28 @@ async function appendToSmartNotesSheet(note){
   }catch(e){console.log('Sheet append error:',e);}
 }
 
+function buildNoteCard(summary, category, date, time, taskCount, fullNote, doneBtn){
+  var catColor=SN_CAT_COLORS[category]||null;
+  var catBg=catColor?'rgba('+Math.round(catColor.red*255)+','+Math.round(catColor.green*255)+','+Math.round(catColor.blue*255)+',.3)':'rgba(240,165,0,.15)';
+  var catFg=catColor?'rgba(0,0,0,.8)':'var(--gold)';
+  return'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">'+
+      '<div style="display:flex;gap:5px;align-items:center;min-width:0;flex-wrap:wrap;">'+
+        '<span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:20px;flex-shrink:0;background:'+catBg+';color:'+catFg+';">'+(category||'General')+'</span>'+
+        (taskCount>0?'<span style="font-size:9px;color:var(--green);flex-shrink:0;">✅ '+taskCount+'</span>':'')+
+        '<span style="font-size:9px;color:var(--muted);">'+date+' '+time+'</span>'+
+      '</div>'+
+      doneBtn+
+    '</div>'+
+    '<div style="font-size:12px;color:var(--cream);line-height:1.45;cursor:pointer;" onclick="expandNote(this.parentElement)">'+summary+'</div>'+
+    '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+fullNote+'</div>';
+}
+
 function loadNoteHistory(){
   var list=document.getElementById('sn-history-list');
+  if(!list)return;
   list.innerHTML='<div class="empty" style="padding:8px 0;"><div class="spin" style="margin:0 auto 6px;"></div>Loading notes...</div>';
 
   if(!oauthToken){
-    console.log('Smart Notes history: no OAuth token, using localStorage');
     renderLocalHistory(list);
     return;
   }
@@ -1777,67 +1797,37 @@ function loadNoteHistory(){
     {headers:{'Authorization':'Bearer '+oauthToken}})
     .then(function(r){return r.json();})
     .then(function(d){
-      if(d.error){
-        console.log('Smart Notes sheet error:',d.error.message);
-        renderLocalHistory(list);
-        return;
-      }
-      var allRows=d.values||[];
-      // Filter out any accidental header rows
-      var rows=allRows.filter(function(r){return r[0]&&r[0]!=='Date';});
-      console.log('Smart Notes loaded '+rows.length+' rows from sheet');
+      if(d.error){renderLocalHistory(list);return;}
+      var rows=(d.values||[]).filter(function(r){return r[0]&&r[0]!=='Date';});
       if(!rows.length){list.innerHTML='<div class="empty">No notes yet — write one above!</div>';return;}
 
-      // Rows come in oldest-first; reverse for newest-first display
-      // Track original 1-based sheet row (row 1 = header, row 2 = first data)
+      // rows come oldest-first; reverse for newest-first, tracking original sheet row
       var indexed=rows.map(function(r,i){return{r:r,sheetRow:i+2};});
       indexed.reverse();
 
       list.innerHTML=indexed.map(function(item){
         var r=item.r, sheetRow=item.sheetRow;
         var taskCount=parseInt(r[7])||0;
-        var catColor=SN_CAT_COLORS[r[2]]||null;
-        var catBg=catColor?'rgba('+Math.round(catColor.red*255)+','+Math.round(catColor.green*255)+','+Math.round(catColor.blue*255)+',.3)':'rgba(240,165,0,.15)';
-        var catFg=catColor?'rgba(0,0,0,.8)':'var(--gold)';
         var summary=r[4]&&r[4]!=='(Not processed)'?r[4]:(r[3]||'').substring(0,80)+((r[3]||'').length>80?'...':'');
-        return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;" data-sheet-row="'+sheetRow+'">'+
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">'+
-            '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'+
-              '<span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:20px;background:'+catBg+';color:'+catFg+';">'+(r[2]||'General')+'</span>'+
-              (taskCount>0?'<span style="font-size:9px;color:var(--green);">✅ '+taskCount+' task'+(taskCount>1?'s':'')+'</span>':'')+
-              '<span style="font-size:9px;color:var(--muted);">'+(r[0]||'')+' '+(r[1]||'')+'</span>'+
-            '</div>'+
-            '<button onclick="archiveNote('+sheetRow+',this)" class="sn-done-btn">✓ Done</button>'+
-          '</div>'+
-          '<div style="font-size:12px;color:var(--cream);line-height:1.45;cursor:pointer;" onclick="expandNote(this.parentElement)">'+summary+'</div>'+
-          '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+(r[3]||'')+'</div>'+
+        var doneBtn='<button onclick="archiveNote('+sheetRow+',this)" class="sn-done-btn" style="flex-shrink:0;">✓ Done</button>';
+        return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;margin-bottom:2px;" data-sheet-row="'+sheetRow+'">'+
+          buildNoteCard(summary,r[2],r[0]||'',r[1]||'',taskCount,r[3]||'',doneBtn)+
         '</div>';
       }).join('');
     })
-    .catch(function(e){
-      console.log('Smart Notes fetch error:',e);
-      renderLocalHistory(list);
-    });
+    .catch(function(){renderLocalHistory(list);});
 }
 
 function renderLocalHistory(list){
   if(!snNotes.length){list.innerHTML='<div class="empty">No notes yet</div>';return;}
   list.innerHTML=snNotes.map(function(n,idx){
     var summary=n.summary&&n.summary!=='(Not processed)'?n.summary:n.rawNote.substring(0,80)+(n.rawNote.length>80?'...':'');
-    return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">'+
-        '<div style="display:flex;gap:6px;align-items:center;">'+
-          '<span style="font-size:9px;font-weight:800;background:rgba(240,165,0,.15);color:var(--gold);padding:2px 8px;border-radius:20px;">'+(n.category||'General')+'</span>'+
-          '<span style="font-size:9px;color:var(--muted);">'+n.date+' '+n.time+'</span>'+
-        '</div>'+
-        '<button onclick="archiveLocalNote('+idx+',this)" class="sn-done-btn">✓ Done</button>'+
-      '</div>'+
-      '<div style="font-size:12px;color:var(--cream);line-height:1.45;cursor:pointer;" onclick="expandNote(this.parentElement)">'+summary+'</div>'+
-      '<div class="sn-note-full" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">'+n.rawNote+'</div>'+
+    var doneBtn='<button onclick="archiveLocalNote('+idx+',this)" class="sn-done-btn" style="flex-shrink:0;">✓ Done</button>';
+    return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:9px 11px;margin-bottom:2px;">'+
+      buildNoteCard(summary,n.category,n.date,n.time,n.taskCount||0,n.rawNote,doneBtn)+
     '</div>';
   }).join('');
 }
-
 function archiveLocalNote(idx,btn){
   btn.textContent='✓';btn.disabled=true;
   snNotes.splice(idx,1);
@@ -2158,6 +2148,8 @@ function onOAuthConnected(){
   // Re-fetch all Google data with OAuth token
   fetchSheetKPIs();
   fetchWCData();
+  // Reload note history so Done buttons appear with new OAuth token
+  if(snHistoryVisible)loadNoteHistory();
 }
 
 // Initialise on load
