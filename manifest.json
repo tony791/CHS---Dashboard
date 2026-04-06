@@ -1,0 +1,41 @@
+{
+  "name": "Columbus Home Solutions — Command Center",
+  "short_name": "CHS Command",
+  "description": "Columbus Home Solutions business dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1A0508",
+  "theme_color": "#3D0C1F",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='24' fill='%233D0C1F'/><path d='M96 28 L164 84 L164 164 L28 164 L28 84 Z' fill='none' stroke='%23F0A500' stroke-width='10'/><path d='M96 28 L174 90' stroke='%23F0A500' stroke-width='9' stroke-linecap='round'/><path d='M96 28 L18 90' stroke='%23F0A500' stroke-width='9' stroke-linecap='round'/><rect x='72' y='108' width='48' height='56' rx='5' fill='%23F0A500'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='60' fill='%233D0C1F'/><path d='M256 72 L440 224 L440 440 L72 440 L72 224 Z' fill='none' stroke='%23F0A500' stroke-width='24'/><path d='M256 72 L464 238' stroke='%23F0A500' stroke-width='22' stroke-linecap='round'/><path d='M256 72 L48 238' stroke='%23F0A500' stroke-width='22' stroke-linecap='round'/><rect x='192' y='288' width='128' height='152' rx='12' fill='%23F0A500'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Tasks",
+      "short_name": "Tasks",
+      "description": "View and manage tasks",
+      "url": "/?section=tasks",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><text y='.9em' font-size='96'>✅</text></svg>", "sizes": "96x96" }]
+    },
+    {
+      "name": "Smart Notes",
+      "short_name": "Notes",
+      "description": "Add a smart note",
+      "url": "/?section=notes",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><text y='.9em' font-size='96'>🧠</text></svg>", "sizes": "96x96" }]
+    }
+  ]
+}
