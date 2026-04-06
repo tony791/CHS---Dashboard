@@ -2879,45 +2879,50 @@ function reAuthGoogle(){
 // ── MOBILE NAVIGATION ────────────────────────────────────────
 function isMobile(){return window.innerWidth<=900;}
 
-function showMobSection(id){
-  if(!isMobile())return;
-  document.getElementById('main-desktop').style.display='none';
-  document.getElementById('mob-view').style.display='block';
-  document.querySelectorAll('.mob-nav-btn').forEach(function(b){
-    b.classList.toggle('active', b.dataset.sec===id);
+// Map nav IDs to section element IDs
+var MOB_SEC_MAP={
+  'home':    'mob-home-section',
+  'tasks':   'mob-tasks-section',
+  'notes':   'mob-notes-section',
+  'pipeline':'mob-pipeline-section',
+  'more':    'mob-more-section'
+};
+
+function mobNav(id){
+  // Update nav button active state
+  document.querySelectorAll('.mnb').forEach(function(b){
+    b.classList.toggle('active', b.id==='mnb-'+id);
   });
+  // Show only the selected section
   document.querySelectorAll('.mob-section').forEach(function(s){
-    s.style.display=s.dataset.sec===id?'block':'none';
+    s.classList.remove('mob-active');
   });
-  localStorage.setItem('chs_mob_sec',id);
-  // Trigger section-specific renders
-  if(id==='tasks')renderMobTasks();
-  if(id==='kpis')syncMobKPIs();
-  if(id==='calendar')renderMobCalendar();
-  if(id==='more')renderMobKanban();
-  if(id==='notes'&&snHistoryVisible){
-    var mobHist=document.getElementById('sn-history-mob');
-    if(mobHist){mobHist.style.display='block';loadMobNoteHistory();}
+  var secId=MOB_SEC_MAP[id];
+  if(secId){
+    var sec=document.getElementById(secId);
+    if(sec)sec.classList.add('mob-active');
   }
+  // Trigger renders
+  try{
+    if(id==='home')syncMobKPIs();
+    if(id==='tasks')renderMobTasks();
+    if(id==='pipeline')renderMobKanban();
+  }catch(e){}
+  localStorage.setItem('chs_mob_sec',id);
 }
 
+// Alias used elsewhere in the code
+function showMobSection(id){mobNav(id);}
 function initMobile(){
-  if(!isMobile()){
-    var md=document.getElementById('main-desktop');
-    var mv=document.getElementById('mob-view');
-    if(md)md.style.display='';
-    if(mv)mv.style.display='none';
-    return;
-  }
-  var last=localStorage.getItem('chs_mob_sec')||'kpis';
-  showMobSection(last);
+  if(!isMobile())return;
+  var sec=localStorage.getItem('chs_mob_sec')||'home';
+  mobNav(sec);
 }
-window.addEventListener('resize',initMobile);
 document.addEventListener('DOMContentLoaded',function(){
-  initMobile();
-  // Handle ?section= from PWA shortcuts
-  var sec=new URLSearchParams(window.location.search).get('section');
-  if(sec)setTimeout(function(){showMobSection(sec);},300);
+  if(isMobile()){
+    var sec=new URLSearchParams(window.location.search).get('section')||localStorage.getItem('chs_mob_sec')||'home';
+    setTimeout(function(){mobNav(sec);},200);
+  }
 });
 
 // Register PWA service worker
