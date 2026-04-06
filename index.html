@@ -2321,6 +2321,11 @@ function onOAuthConnected(){
   fetchWCData();
   // Reload note history so Done buttons appear with new OAuth token
   if(snHistoryVisible)loadNoteHistory();
+  // Update mobile OAuth button and task badge
+  var mobBtn=document.getElementById('oauth-connect-btn-mob');
+  if(mobBtn){mobBtn.textContent='✓ Google Connected';mobBtn.style.background='rgba(82,192,122,.2)';mobBtn.style.color='var(--green)';mobBtn.style.borderColor='rgba(82,192,122,.35)';}
+  var mobTaskBadge=document.getElementById('tasks-sync-badge-mob');
+  if(mobTaskBadge){mobTaskBadge.textContent='Synced';mobTaskBadge.style.color='var(--green)';}
 }
 
 // Initialise on load
@@ -3108,15 +3113,6 @@ function loadMobNoteHistory(){
 }
 
 // Update mobile OAuth button when connected
-var _origOnOAuthConnected=onOAuthConnected;
-function onOAuthConnected(){
-  _origOnOAuthConnected();
-  var mobBtn=document.getElementById('oauth-connect-btn-mob');
-  if(mobBtn){mobBtn.textContent='✓ Google Connected';mobBtn.style.background='rgba(82,192,122,.2)';mobBtn.style.color='var(--green)';mobBtn.style.borderColor='rgba(82,192,122,.35)';}
-  var taskBadge=document.getElementById('tasks-sync-badge-mob');
-  if(taskBadge){taskBadge.textContent='Synced';taskBadge.style.color='var(--green)';}
-}
-
 function refreshAll(){
   fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberMetrics();
   if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}
