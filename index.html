@@ -9,7 +9,14 @@
 <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="pragma" content="no-cache">
 <meta http-equiv="expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3D0C1F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CHS Command">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='30' fill='%233D0C1F'/><path d='M96 28 L164 80 L164 164 L28 164 L28 80 Z' fill='none' stroke='%23F0A500' stroke-width='10'/><path d='M96 28 L176 88' stroke='%23F0A500' stroke-width='9' stroke-linecap='round'/><path d='M96 28 L16 88' stroke='%23F0A500' stroke-width='9' stroke-linecap='round'/><rect x='72' y='108' width='48' height='56' rx='5' fill='%23F0A500'/></svg>">
 <title>Columbus Home Solutions — Command Center</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%233D0C1F'/><path d='M32 10 L54 28 L54 54 L10 54 L10 28 Z' fill='none' stroke='%23F0A500' stroke-width='3.5'/><path d='M32 10 L58 30' stroke='%23F0A500' stroke-width='3' stroke-linecap='round'/><path d='M32 10 L6 30' stroke='%23F0A500' stroke-width='3' stroke-linecap='round'/><rect x='24' y='36' width='16' height='18' rx='2' fill='%23F0A500'/></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -204,6 +211,86 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1900px;margin:
 .bcn{background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:10px 14px;font-family:'Nunito',sans-serif;font-size:13px;cursor:pointer;}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:rgba(240,165,0,.28);border-radius:3px;}
 ::-webkit-scrollbar-horizontal{height:4px;}
+/* ══ MOBILE BOTTOM NAV ══ */
+.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:linear-gradient(180deg,rgba(30,5,15,.95),rgba(20,3,10,.99));border-top:1px solid rgba(240,165,0,.22);padding:6px 0 max(6px,env(safe-area-inset-bottom));backdrop-filter:blur(12px);}
+.mob-nav-inner{display:flex;justify-content:space-around;align-items:center;}
+.mnb{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:rgba(255,248,236,.45);cursor:pointer;padding:4px 10px;border-radius:10px;transition:all .2s;font-family:'Nunito',sans-serif;min-width:52px;}
+.mnb.active{color:var(--gold);}
+.mnb span:first-child{font-size:20px;line-height:1;}
+.mnb span:last-child{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.mnb.active span:last-child{color:var(--gold);}
+
+/* ══ MOBILE SECTIONS ══ */
+.mob-section{display:none;}
+
+@media(max-width:768px){
+  /* Show bottom nav */
+  .mob-nav{display:block;}
+  body{padding-bottom:calc(64px + env(safe-area-inset-bottom));}
+
+  /* Header — compact */
+  header{height:auto;padding:10px 14px;flex-wrap:wrap;gap:8px;}
+  .hl{gap:8px;}
+  .logo{height:38px;width:38px;}
+  .bn{font-size:18px;letter-spacing:1px;}
+  .bt{display:none;}
+  .hr{gap:8px;}
+  #clk-t{font-size:20px;}
+  #clk-d{font-size:9px;}
+  #oauth-connect-btn span:not(svg){display:none;}
+  #oauth-connect-btn{padding:6px 10px;}
+
+  /* Weather bar — compact */
+  .wbar{padding:5px 14px;gap:10px;flex-wrap:wrap;}
+  .wex{gap:10px;padding-left:10px;}
+  .wloc{display:none;}
+
+  /* Main layout — single column */
+  main{padding:10px 10px 14px;}
+  .kstrip{grid-template-columns:repeat(3,1fr);gap:7px;}
+  .kpi{padding:9px 10px;}
+  .kv{font-size:20px;}
+  .kl{font-size:8px;}
+  .mgrid{display:block;}
+  .mgrid > div{display:none;}
+
+  /* Show only the active mobile section */
+  .mob-section.mob-active{display:block;}
+
+  /* Business Pulse grid on mobile */
+  [style*="grid-template-columns:repeat(3,1fr)"][style*="background:rgba(240,165,0"]{grid-template-columns:repeat(2,1fr)!important;}
+
+  /* Cards full width */
+  .card{border-radius:11px;}
+
+  /* Kanban — horizontal scroll */
+  .kanban-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .kb-col{width:155px;}
+
+  /* Task form grid — single col */
+  .tfrow{grid-template-columns:1fr;}
+
+  /* Calendar cells smaller */
+  .cday{min-height:52px;padding:3px;}
+
+  /* Smart notes textarea */
+  #sn-input{min-height:80px;}
+
+  /* Maps full height */
+  .card iframe{height:220px!important;}
+
+  /* Modals full-screen on mobile */
+  .modal{width:calc(100vw - 28px);max-width:420px;}
+
+  /* KPI strip always visible at top */
+  .kstrip{display:grid!important;}
+}
+
+@media(max-width:480px){
+  .kstrip{grid-template-columns:repeat(2,1fr);}
+  .bn{font-size:15px;}
+  #clk-t{font-size:17px;}
+}
 </style>
 </head>
 <body>
@@ -255,7 +342,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
   <div class="mgrid">
 
     <!-- LEFT: QUICK LAUNCH + TASKS -->
-    <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;flex-direction:column;gap:12px;" id="mob-more-section" class="mob-section">
       <div class="card">
         <div class="ch"><span class="ct">🚀 Quick Launch</span></div>
         <div class="cb">
@@ -343,7 +430,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     </div>
 
     <!-- CENTER: BUSINESS TRACKERS + CALENDAR + KANBAN -->
-    <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;flex-direction:column;gap:12px;" id="mob-home-section" class="mob-section mob-active">
       <div class="card" style="overflow:hidden;padding:0;">
         <!-- TICKER HEADER -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid rgba(240,165,0,.12);">
@@ -519,7 +606,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     </div>
 
     <!-- RIGHT: TASK MANAGER + BUSINESS TRACKERS -->
-    <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;flex-direction:column;gap:12px;" id="mob-tasks-section" class="mob-section">
       <!-- TASK MANAGER -->
       <div class="card">
         <div class="ch">
@@ -634,6 +721,17 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     <div class="mact"><button class="bcn" onclick="closeMod('kpi-mod')">Cancel</button><button class="bpr" onclick="saveKpi()">Update</button></div>
   </div>
 </div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" id="mob-nav">
+  <div class="mob-nav-inner">
+    <button class="mnb active" id="mnb-home" onclick="mobNav('home')"><span>📊</span><span>Home</span></button>
+    <button class="mnb" id="mnb-tasks" onclick="mobNav('tasks')"><span>✅</span><span>Tasks</span></button>
+    <button class="mnb" id="mnb-notes" onclick="mobNav('notes')"><span>🧠</span><span>Notes</span></button>
+    <button class="mnb" id="mnb-pipeline" onclick="mobNav('pipeline')"><span>🎯</span><span>Pipeline</span></button>
+    <button class="mnb" id="mnb-more" onclick="mobNav('more')"><span>☰</span><span>More</span></button>
+  </div>
+</nav>
 
 <script>
 var OAUTH_CLIENT_ID='%%OAUTH_CLIENT_ID%%';
@@ -2773,7 +2871,257 @@ function reAuthGoogle(){
   setTimeout(function(){connectGoogle();},100);
 }
 
-function refreshAll(){fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberMetrics();if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}}
+// ── MOBILE NAVIGATION ────────────────────────────────────────
+function isMobile(){return window.innerWidth<=900;}
+
+function showMobSection(id){
+  if(!isMobile())return;
+  document.getElementById('main-desktop').style.display='none';
+  document.getElementById('mob-view').style.display='block';
+  document.querySelectorAll('.mob-nav-btn').forEach(function(b){
+    b.classList.toggle('active', b.dataset.sec===id);
+  });
+  document.querySelectorAll('.mob-section').forEach(function(s){
+    s.style.display=s.dataset.sec===id?'block':'none';
+  });
+  localStorage.setItem('chs_mob_sec',id);
+}
+
+function initMobile(){
+  if(!isMobile()){
+    var md=document.getElementById('main-desktop');
+    var mv=document.getElementById('mob-view');
+    if(md)md.style.display='';
+    if(mv)mv.style.display='none';
+    return;
+  }
+  var last=localStorage.getItem('chs_mob_sec')||'kpis';
+  showMobSection(last);
+}
+window.addEventListener('resize',initMobile);
+document.addEventListener('DOMContentLoaded',function(){
+  initMobile();
+  // Handle ?section= from PWA shortcuts
+  var sec=new URLSearchParams(window.location.search).get('section');
+  if(sec)setTimeout(function(){showMobSection(sec);},300);
+});
+
+// Register PWA service worker
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('sw.js')
+      .then(function(){console.log('CHS SW registered');})
+      .catch(function(){});
+  });
+}
+
+// ── MOBILE DATA SYNC ─────────────────────────────────────────
+// Mirror live KPI values to mobile elements
+function syncMobKPIs(){
+  var map={
+    'kv-ol':'mob-kv-ol','kv-mp':'mob-kv-mp','kv-wr':'mob-kv-wr',
+    'kv-ui':'mob-kv-ui','kv-ji':'mob-kv-ji','kv-ps':'mob-kv-ps',
+    'wc-mo-income':'mob-mo-income','wc-mo-profit':'mob-mo-profit',
+    'wc-ytd-income':'mob-ytd-income','wc-ytd-profit':'mob-ytd-profit',
+    'w-ico':'mob-w-ico','w-tmp':'mob-w-tmp','w-dsc':'mob-w-dsc','w-fl':'mob-w-fl','w-hm':'mob-w-hm'
+  };
+  Object.keys(map).forEach(function(src){
+    var s=document.getElementById(src), d=document.getElementById(map[src]);
+    if(s&&d)d.textContent=s.textContent;
+  });
+}
+// Sync every 5 seconds while mobile view visible
+setInterval(function(){if(isMobile())syncMobKPIs();},5000);
+
+// Mobile task list render — mirrors desktop but optimised for touch
+function renderMobTasks(){
+  var list=document.getElementById('mob-task-list');
+  if(!list)return;
+  var filtered=getFiltered().filter(function(t){return !t.done;});
+  if(!filtered.length){list.innerHTML='<div class="empty">No tasks</div>';return;}
+
+  // Build parent-child map same as desktop
+  var childrenOf={};
+  filtered.forEach(function(t){
+    if(!t.isSubtask)return;
+    var par=null;
+    if(t.parentId)par=tasks.find(function(p){return p.gTasksId===t.parentId;});
+    if(!par&&t._parentLid)par=tasks.find(function(p){return p._lid===t._parentLid;});
+    if(par){var pi=tasks.indexOf(par);if(!childrenOf[pi])childrenOf[pi]=[];childrenOf[pi].push(t);}
+  });
+
+  var html='';
+  filtered.forEach(function(t){
+    if(t.isSubtask&&(t.parentId||t._parentLid))return;
+    var i=tasks.indexOf(t);
+    var due=getDue(t.due,t.time);
+    var kids=childrenOf[i]||[];
+    var lColor=t.pri==='high'?'#e05252':t.pri==='med'?'var(--orange-lt)':t.pri==='low'?'var(--green)':'rgba(255,255,255,.1)';
+    var isOpen=expandedTasks[i]===true;
+
+    html+='<div style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-left:3px solid '+lColor+';border-radius:8px;padding:11px 12px;display:flex;align-items:flex-start;gap:10px;">'+
+      '<input type="checkbox" class="tchk" style="margin-top:3px;" onchange="togTask('+i+');renderMobTasks()">'+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="font-weight:700;font-size:14px;color:var(--cream);line-height:1.3;margin-bottom:4px;">'+t.title+'</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'+
+          (t.pri==='high'?'<span style="font-size:10px;font-weight:700;color:#e05252;">🔴 High</span>':'')+ 
+          (due?'<span style="font-size:11px;color:var(--muted);">📅 '+due.txt+'</span>':'')+
+          (t.cat?'<span class="tcat">'+t.cat+'</span>':'')+
+        '</div>'+
+        (kids.length?'<button onclick="toggleSubtasks('+i+');renderMobTasks()" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:0;margin-top:4px;">'+(isOpen?'▾ Hide':'▸ Show')+' '+kids.length+' subtask'+(kids.length>1?'s':'')+'</button>':'')+
+      '</div>'+
+      '<span onclick="delTask('+i+');renderMobTasks()" style="color:rgba(255,255,255,.2);font-size:16px;cursor:pointer;padding:0 2px;flex-shrink:0;">✕</span>'+
+    '</div>';
+
+    if(kids.length&&isOpen){
+      kids.forEach(function(child){
+        var ci=tasks.indexOf(child);
+        html+='<div style="margin-left:20px;background:rgba(0,0,0,.18);border-left:2px solid rgba(255,255,255,.1);border-radius:0 7px 7px 0;padding:9px 12px;display:flex;align-items:center;gap:10px;">'+
+          '<input type="checkbox" class="tchk" style="width:15px;height:15px;" onchange="togTask('+ci+');renderMobTasks()">'+
+          '<div style="font-size:13px;color:rgba(255,248,236,.8);">'+child.title+'</div>'+
+          '<span onclick="delTask('+ci+');renderMobTasks()" style="margin-left:auto;color:rgba(255,255,255,.2);font-size:14px;cursor:pointer;">✕</span>'+
+        '</div>';
+      });
+    }
+  });
+  list.innerHTML=html;
+}
+
+// Mobile note processing — delegates to main processNote after syncing inputs
+function mobProcessNote(){
+  var mobInput=document.getElementById('sn-input-mob');
+  var mobCat=document.getElementById('sn-cat-mob');
+  var mainInput=document.getElementById('sn-input');
+  var mainCat=document.getElementById('sn-cat');
+  if(!mobInput.value.trim()){alert('Please write a note first!');return;}
+  // Copy to main inputs and trigger
+  mainInput.value=mobInput.value;
+  mainCat.value=mobCat.value;
+  var status=document.getElementById('sn-mob-status');
+  status.style.display='block';
+  status.textContent='⏳ Processing with Claude...';
+  processNote().then(function(){
+    mobInput.value='';
+    mobCat.value='';
+    status.textContent='✓ Saved!';
+    setTimeout(function(){status.style.display='none';},3000);
+  }).catch(function(){
+    status.textContent='✓ Saved locally';
+    setTimeout(function(){status.style.display='none';},3000);
+  });
+}
+
+// Mobile kanban summary (shows count per stage in More tab)
+function renderMobKanban(){
+  var el=document.getElementById('mob-kanban-summary');
+  if(!el)return;
+  var counts={};
+  KANBAN_COLS.forEach(function(c){counts[c.id]=0;});
+  leads.forEach(function(l){if(counts[l.stage]!==undefined)counts[l.stage]++;});
+  el.innerHTML=KANBAN_COLS.filter(function(c){return c.id!=='lost';}).map(function(c){
+    return'<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">'+
+      '<span style="font-size:13px;color:var(--cream);">'+c.icon+' '+c.label+'</span>'+
+      '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--gold);">'+counts[c.id]+'</span>'+
+    '</div>';
+  }).join('');
+}
+
+// Mirror calendar to mobile calendar section
+function renderMobCalendar(){
+  var dowMob=document.getElementById('cal-dow-row-mob');
+  var gridMob=document.getElementById('cal-grid-mob');
+  var labelMob=document.getElementById('cal-view-label-mob');
+  var dowDesk=document.getElementById('cal-dow-row');
+  var gridDesk=document.getElementById('cal-grid');
+  var labelDesk=document.getElementById('cal-view-label');
+  if(dowMob&&dowDesk)dowMob.innerHTML=dowDesk.innerHTML;
+  if(gridMob&&gridDesk)gridMob.innerHTML=gridDesk.innerHTML;
+  if(labelMob&&labelDesk)labelMob.textContent=labelDesk.textContent;
+  // Re-attach click handlers on mobile cells
+  if(gridMob){
+    gridMob.querySelectorAll('[onclick]').forEach(function(el){
+      var m=el.getAttribute('onclick').match(/selectDay\('([^']+)'\)/);
+      if(m){
+        var ds=m[1];
+        el.onclick=function(){
+          selectDay(ds);
+          // Show events in mobile event list
+          var evs=getEventsForDate(new Date(ds+'T00:00:00'));
+          var mobList=document.getElementById('cal-event-list-mob');
+          if(!mobList)return;
+          if(!evs.length){mobList.style.display='none';return;}
+          mobList.style.display='block';
+          mobList.innerHTML=evs.map(function(e,idx){
+            var c=EV_COLORS[idx%EV_COLORS.length];
+            return'<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">'+
+              '<div style="width:3px;background:'+c+';border-radius:2px;flex-shrink:0;"></div>'+
+              '<div><div style="font-weight:700;font-size:13px;color:var(--cream);">'+e.summary+'</div>'+
+              '<div style="font-size:11px;color:var(--muted);">'+fmtEvTime(e)+'</div></div></div>';
+          }).join('');
+        };
+      }
+    });
+  }
+}
+// Sync calendar to mobile whenever it re-renders
+var _origRenderCalendar=window.renderCalendar||(function(){});
+
+// Hook into section switches to update mobile content
+var _origShowMobSection=showMobSection;
+function showMobSection(id){
+  _origShowMobSection(id);
+  if(id==='tasks')renderMobTasks();
+  if(id==='kpis')syncMobKPIs();
+  if(id==='calendar')renderMobCalendar();
+  if(id==='more')renderMobKanban();
+  if(id==='notes'&&snHistoryVisible){
+    var mobHist=document.getElementById('sn-history-mob');
+    if(mobHist){mobHist.style.display='block';loadMobNoteHistory();}
+  }
+}
+
+function loadMobNoteHistory(){
+  var list=document.getElementById('sn-history-list-mob');
+  if(!list)return;
+  // Re-use same sheet data as desktop history
+  list.innerHTML='<div class="empty"><div class="spin" style="margin:0 auto 6px;"></div>Loading...</div>';
+  if(!oauthToken){list.innerHTML='<div class="empty">Connect Google to view notes</div>';return;}
+  fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SN_SHEET_ID+'/values/'+encodeURIComponent('Smart Notes!A2:I50'),
+    {headers:{'Authorization':'Bearer '+oauthToken}})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var rows=(d.values||[]).filter(function(r){return r[0]&&r[0]!=='Date';}).reverse();
+      if(!rows.length){list.innerHTML='<div class="empty">No notes yet</div>';return;}
+      list.innerHTML=rows.map(function(r,idx){
+        var status=r[8]||'';
+        var summary=r[4]&&r[4]!=='(Not processed)'?r[4]:(r[3]||'').substring(0,80);
+        return'<div style="background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px 12px;">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'+
+            '<span style="font-size:9px;font-weight:800;background:rgba(240,165,0,.15);color:var(--gold);padding:2px 8px;border-radius:20px;">'+(r[2]||'General')+'</span>'+
+            '<span style="font-size:10px;color:var(--muted);">'+r[0]+' '+r[1]+'</span>'+
+          '</div>'+
+          '<div style="font-size:13px;color:var(--cream);line-height:1.4;">'+summary+'</div>'+
+          (status?'<div style="font-size:10px;color:var(--muted);margin-top:4px;">Status: '+status+'</div>':'')+
+        '</div>';
+      }).join('');
+    }).catch(function(){list.innerHTML='<div class="empty">Could not load notes</div>';});
+}
+
+// Update mobile OAuth button when connected
+var _origOnOAuthConnected=onOAuthConnected;
+function onOAuthConnected(){
+  _origOnOAuthConnected();
+  var mobBtn=document.getElementById('oauth-connect-btn-mob');
+  if(mobBtn){mobBtn.textContent='✓ Google Connected';mobBtn.style.background='rgba(82,192,122,.2)';mobBtn.style.color='var(--green)';mobBtn.style.borderColor='rgba(82,192,122,.35)';}
+  var taskBadge=document.getElementById('tasks-sync-badge-mob');
+  if(taskBadge){taskBadge.textContent='Synced';taskBadge.style.color='var(--green)';}
+}
+
+function refreshAll(){
+  fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberMetrics();
+  if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}
+  if(isMobile()){syncMobKPIs();renderMobTasks();renderMobCalendar();}
+}
 </script>
 </body>
 </html>
