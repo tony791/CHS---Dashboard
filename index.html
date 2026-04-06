@@ -2890,6 +2890,15 @@ function showMobSection(id){
     s.style.display=s.dataset.sec===id?'block':'none';
   });
   localStorage.setItem('chs_mob_sec',id);
+  // Trigger section-specific renders
+  if(id==='tasks')renderMobTasks();
+  if(id==='kpis')syncMobKPIs();
+  if(id==='calendar')renderMobCalendar();
+  if(id==='more')renderMobKanban();
+  if(id==='notes'&&snHistoryVisible){
+    var mobHist=document.getElementById('sn-history-mob');
+    if(mobHist){mobHist.style.display='block';loadMobNoteHistory();}
+  }
 }
 
 function initMobile(){
@@ -3072,19 +3081,6 @@ function renderMobCalendar(){
 var _origRenderCalendar=window.renderCalendar||(function(){});
 
 // Hook into section switches to update mobile content
-var _origShowMobSection=showMobSection;
-function showMobSection(id){
-  _origShowMobSection(id);
-  if(id==='tasks')renderMobTasks();
-  if(id==='kpis')syncMobKPIs();
-  if(id==='calendar')renderMobCalendar();
-  if(id==='more')renderMobKanban();
-  if(id==='notes'&&snHistoryVisible){
-    var mobHist=document.getElementById('sn-history-mob');
-    if(mobHist){mobHist.style.display='block';loadMobNoteHistory();}
-  }
-}
-
 function loadMobNoteHistory(){
   var list=document.getElementById('sn-history-list-mob');
   if(!list)return;
