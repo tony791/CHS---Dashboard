@@ -2698,10 +2698,16 @@ function changeCalView(dir){
 function goToday(){calViewDate=new Date();renderCalendar();}
 
 function getEventsForDate(date){
+  var y=date.getFullYear(),m=date.getMonth(),d=date.getDate();
   return calAllEvents.filter(function(e){
     if(!e._startDate)return false;
+    if(e.allDay){
+      // All-day dates are "YYYY-MM-DD" — parse without timezone shift
+      var parts=e._startDate.substring(0,10).split('-');
+      return parseInt(parts[0])===y&&parseInt(parts[1])-1===m&&parseInt(parts[2])===d;
+    }
     var sd=new Date(e._startDate);
-    return sd.getFullYear()===date.getFullYear()&&sd.getMonth()===date.getMonth()&&sd.getDate()===date.getDate();
+    return sd.getFullYear()===y&&sd.getMonth()===m&&sd.getDate()===d;
   });
 }
 
@@ -2728,7 +2734,15 @@ function renderCalendar(){
     grid.style.paddingRight='4px';
     var now=new Date();now.setHours(0,0,0,0);
     var upcoming=calAllEvents.filter(function(e){
-      return e._startDate&&new Date(e._startDate)>=now;
+      if(!e._startDate)return false;
+      var evDate;
+      if(e.allDay){
+        var p=e._startDate.substring(0,10).split('-');
+        evDate=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+      }else{
+        evDate=new Date(e._startDate);
+      }
+      return evDate>=now;
     }).sort(function(a,b){return new Date(a._startDate)-new Date(b._startDate)}).slice(0,30);
     if(!upcoming.length){
       grid.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">No upcoming events</div>';
@@ -2737,7 +2751,13 @@ function renderCalendar(){
     // Group by date
     var grouped={};
     upcoming.forEach(function(e){
-      var d=new Date(e._startDate);
+      var d;
+      if(e.allDay){
+        var p=e._startDate.substring(0,10).split('-');
+        d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+      }else{
+        d=new Date(e._startDate);
+      }
       var key=d.toDateString();
       if(!grouped[key])grouped[key]={date:d,events:[]};
       grouped[key].events.push(e);
