@@ -63,7 +63,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1440px;width:1
 .ke{font-size:9px;color:rgba(255,255,255,.18);position:absolute;top:7px;right:8px;}.ke:hover{color:var(--gold);}
 
 /* 3-COL GRID */
-.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:start;width:100%;}
+.mgrid{display:grid;grid-template-columns:300px minmax(0,1fr) 300px;gap:12px;align-items:start;width:100%;}
 
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:13px;backdrop-filter:blur(8px);overflow:hidden;}
@@ -94,7 +94,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1440px;width:1
 .evmore{font-size:9px;color:var(--muted);}
 
 /* ══ KANBAN ══ */
-.kanban-wrap{overflow-x:auto;padding-bottom:6px;}
+.kanban-wrap{overflow-x:auto;padding-bottom:6px;max-width:100%;}
 .kanban-board{display:flex;gap:10px;min-width:max-content;padding:2px 0 4px;align-items:stretch;}
 .kb-col{width:175px;flex-shrink:0;display:flex;flex-direction:column;gap:0;}
 .kb-header{border-radius:9px 9px 0 0;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;}
