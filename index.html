@@ -110,6 +110,8 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1900px;margin:
 .kbc-fu .kb-header{background:rgba(160,90,200,.25);border:1px solid rgba(160,90,200,.4);border-bottom:none;}
 .kbc-won .kb-header{background:rgba(82,192,122,.25);border:1px solid rgba(82,192,122,.4);border-bottom:none;}
 .kbc-lost .kb-header{background:rgba(224,82,82,.2);border:1px solid rgba(224,82,82,.35);border-bottom:none;}
+.kbc-dead .kb-header{background:rgba(100,100,100,.2);border:1px solid rgba(150,150,150,.3);border-bottom:none;}
+.kbc-dead .kb-count{opacity:.6;}
 
 .kb-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px 10px;cursor:grab;transition:transform .15s,box-shadow .15s,border-color .15s;user-select:none;position:relative;}
 .kb-card:hover{border-color:rgba(240,165,0,.4);box-shadow:0 4px 14px rgba(0,0,0,.4);transform:translateY(-1px);}
@@ -571,6 +573,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
           <div style="display:flex;gap:7px;align-items:center;">
             <span id="hl-sync-badge" style="font-size:9px;font-weight:700;background:rgba(255,255,255,.08);color:var(--muted);padding:3px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:4px;"><span id="hl-sync-dot" style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.25);display:inline-block;"></span><span id="hl-sync-txt">Connecting to High Level...</span></span>
             <span class="bdg" id="kb-total">0 leads</span>
+            <span class="bdg" onclick="toggleDeadCol()" id="dead-col-toggle" style="cursor:pointer;">💀 Hide Dead</span>
             <span class="bdg" onclick="openMod('lead-mod')" style="cursor:pointer;background:rgba(240,165,0,.28);">+ Add Lead</span>
           </div>
         </div>
@@ -685,7 +688,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     <label class="ml">Temperature</label>
     <select id="l-temp"><option value="hot">🔥 Hot — Ready to book</option><option value="warm">🌤 Warm — Following up</option><option value="cold">❄️ Cold — Just inquired</option></select>
     <label class="ml">Pipeline Stage</label>
-    <select id="l-stage"><option value="new">New Lead</option><option value="appt">Appointment Scheduled</option><option value="est">Estimate Sent</option><option value="fu">Follow Up</option><option value="won">Won</option><option value="lost">Lost</option></select>
+    <select id="l-stage"><option value="new">New Lead</option><option value="appt">Appointment Scheduled</option><option value="est">Estimate Sent</option><option value="fu">Follow Up</option><option value="won">Won</option><option value="lost">Lost</option><option value="dead">💀 Dead Lead</option></select>
     <div class="mact"><button class="bcn" onclick="closeMod('lead-mod')">Cancel</button><button class="bpr" onclick="saveLead()">Save Lead</button></div>
   </div>
 </div>
@@ -874,8 +877,9 @@ var COLS=[
   {id:'appt',  label:'Appt Scheduled',  cls:'kbc-appt',icon:'📅'},
   {id:'est',   label:'Estimate Sent',   cls:'kbc-est', icon:'📋'},
   {id:'fu',    label:'Follow Up',       cls:'kbc-fu',  icon:'📞'},
-  {id:'won',   label:'Won ✓',      cls:'kbc-won', icon:'🏆'},
-  {id:'lost',  label:'Lost',            cls:'kbc-lost',icon:'❌'}
+  {id:'won',   label:'Won ✓',           cls:'kbc-won', icon:'🏆'},
+  {id:'lost',  label:'Lost',            cls:'kbc-lost',icon:'❌'},
+  {id:'dead',  label:'Dead Lead',       cls:'kbc-dead',icon:'💀',hideable:true}
 ];
 
 var HL_STAGE_MAP={
@@ -884,7 +888,8 @@ var HL_STAGE_MAP={
   'estimate sent':'est','estimate':'est','quote sent':'est','proposal sent':'est',
   'follow up':'fu','follow-up':'fu','nurture':'fu',
   'won':'won','closed won':'won','closed':'won','booked':'won',
-  'lost':'lost','closed lost':'lost','not interested':'lost','unqualified':'lost'
+  'lost':'lost','closed lost':'lost','not interested':'lost','unqualified':'lost',
+  'dead':'dead','dead lead':'dead','disqualified':'dead','no response':'dead','cold dead':'dead'
 };
 
 var leads=JSON.parse(localStorage.getItem('chs_leads_kb')||'[]');
@@ -916,7 +921,7 @@ function getHLStageId(colId){
   if(!hlPipelines.length)return null;
   var pipeline=hlPipelines[0];
   if(!pipeline.stages)return null;
-  var nameMap={'new':'New Lead','appt':'Appointment Scheduled','est':'Estimate Sent','fu':'Follow Up','won':'Won','lost':'Lost'};
+  var nameMap={'new':'New Lead','appt':'Appointment Scheduled','est':'Estimate Sent','fu':'Follow Up','won':'Won','lost':'Lost','dead':'Dead Lead'};
   var target=nameMap[colId]||colId;
   var stage=pipeline.stages.find(function(s){return s.name&&s.name.toLowerCase()===target.toLowerCase();});
   return stage?stage.id:(pipeline.stages[0]?pipeline.stages[0].id:null);
@@ -936,20 +941,21 @@ function fetchHLData(){
     .then(function(r){return r.json();})
     .then(function(d){
       var ops=d.opportunities||[];
-      var hlIds=ops.map(function(o){return o.id;});
-      leads=leads.filter(function(l){return!l.hlId||!hlIds.includes(l.hlId);});
-      ops.forEach(function(op){
+      var localLeads=leads.filter(function(l){return !l.hlId;});
+      var hlLeads=ops.map(function(op){
         var stageName=op.stage&&op.stage.name?op.stage.name:'';
-        leads.push({
+        var existing=leads.find(function(l){return l.hlId===op.id;});
+        return{
           id:'hl-'+op.id,hlId:op.id,
           name:op.name||(op.contact&&op.contact.name)||'Unknown',
           contact:op.contact&&op.contact.phone?op.contact.phone:'',
           desc:op.source||'',
-          temp:op.monetaryValue>5000?'hot':op.monetaryValue>1000?'warm':'cold',
+          temp:existing?existing.temp:(op.monetaryValue>5000?'hot':op.monetaryValue>1000?'warm':'cold'),
           stage:mapHLStage(stageName),
           hlValue:op.monetaryValue||0
-        });
+        };
       });
+      leads=localLeads.concat(hlLeads);
       saveLeads();renderKanban();
       setHLBadge('HL Synced ✓','green');
     })
@@ -989,12 +995,27 @@ function deleteHLOpportunity(hlId){
   fetch(HL_BASE+'/opportunities/'+hlId,{method:'DELETE',headers:HL_HEADERS}).catch(function(){});
 }
 
+var deadColHidden=JSON.parse(localStorage.getItem('chs_dead_hidden')||'false');
+
+function toggleDeadCol(){
+  deadColHidden=!deadColHidden;
+  localStorage.setItem('chs_dead_hidden',JSON.stringify(deadColHidden));
+  var btn=document.getElementById('dead-col-toggle');
+  if(btn)btn.textContent=deadColHidden?'💀 Show Dead':'💀 Hide Dead';
+  renderKanban();
+}
+
 function renderKanban(){
   var total=leads.length;
   document.getElementById('kb-total').textContent=total+' lead'+(total!==1?'s':'');
+  // Update toggle button label on render
+  var toggleBtn=document.getElementById('dead-col-toggle');
+  if(toggleBtn)toggleBtn.textContent=deadColHidden?'💀 Show Dead':'💀 Hide Dead';
   var board=document.getElementById('kanban-board');
   var html='';
-  COLS.forEach(function(col){
+  // Filter out dead col if hidden
+  var visibleCols=COLS.filter(function(col){return !(col.id==='dead'&&deadColHidden);});
+  visibleCols.forEach(function(col){
     var colLeads=leads.filter(function(l){return l.stage===col.id;});
     var cards='';
     colLeads.forEach(function(l){
@@ -3025,9 +3046,9 @@ function renderMobKanban(){
   var el=document.getElementById('mob-kanban-summary');
   if(!el)return;
   var counts={};
-  KANBAN_COLS.forEach(function(c){counts[c.id]=0;});
+  COLS.forEach(function(c){counts[c.id]=0;});
   leads.forEach(function(l){if(counts[l.stage]!==undefined)counts[l.stage]++;});
-  el.innerHTML=KANBAN_COLS.filter(function(c){return c.id!=='lost';}).map(function(c){
+  el.innerHTML=COLS.filter(function(c){return c.id!=='lost'&&!(c.id==='dead'&&deadColHidden);}).map(function(c){
     return'<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">'+
       '<span style="font-size:13px;color:var(--cream);">'+c.icon+' '+c.label+'</span>'+
       '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--gold);">'+counts[c.id]+'</span>'+
@@ -3105,7 +3126,7 @@ function loadMobNoteHistory(){
 
 // Update mobile OAuth button when connected
 function refreshAll(){
-  fetchCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberMetrics();
+  renderCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberMetrics();fetchHLData();
   if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}
   if(isMobile()){syncMobKPIs();renderMobTasks();renderMobCalendar();}
 }
