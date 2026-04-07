@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     <label class="ml">Temperature</label>
     <select id="l-temp"><option value="hot">🔥 Hot — Ready to book</option><option value="warm">🌤 Warm — Following up</option><option value="cold">❄️ Cold — Just inquired</option></select>
     <label class="ml">Pipeline Stage</label>
-    <select id="l-stage"><option value="new">New Lead</option><option value="appt">Appointment Scheduled</option><option value="est">Estimate Sent</option><option value="fu">Follow Up</option><option value="won">Won</option><option value="lost">Lost</option><option value="dead">💀 Dead Lead</option></select>
+    <select id="l-stage"><option value="new">New Lead</option><option value="cont">Contacted | Follow Up</option><option value="appt">Appointment Set</option><option value="est">Create Estimate</option><option value="estfu">Estimate Sent | Follow Up</option><option value="won">Job Completed | Collected</option><option value="unpaid">Job Completed | Not Collected</option><option value="dead">💀 Dead Lead</option></select>
     <div class="mact"><button class="bcn" onclick="closeMod('lead-mod')">Cancel</button><button class="bpr" onclick="saveLead()">Save Lead</button></div>
   </div>
 </div>
@@ -873,23 +873,33 @@ var HL_BASE='https://services.leadconnectorhq.com';
 var HL_HEADERS={'Authorization':'Bearer '+HL_TOKEN,'Version':'2021-07-28','Content-Type':'application/json'};
 
 var COLS=[
-  {id:'new',   label:'New Lead',        cls:'kbc-new', icon:'🆕'},
-  {id:'appt',  label:'Appt Scheduled',  cls:'kbc-appt',icon:'📅'},
-  {id:'est',   label:'Estimate Sent',   cls:'kbc-est', icon:'📋'},
-  {id:'fu',    label:'Follow Up',       cls:'kbc-fu',  icon:'📞'},
-  {id:'won',   label:'Won ✓',           cls:'kbc-won', icon:'🏆'},
-  {id:'lost',  label:'Lost',            cls:'kbc-lost',icon:'❌'},
-  {id:'dead',  label:'Dead Lead',       cls:'kbc-dead',icon:'💀',hideable:true}
+  {id:'new',   label:'New Lead',              cls:'kbc-new',  icon:'🆕'},
+  {id:'cont',  label:'Contacted | Follow Up', cls:'kbc-fu',   icon:'📞'},
+  {id:'appt',  label:'Appointment Set',       cls:'kbc-appt', icon:'📅'},
+  {id:'est',   label:'Create Estimate',       cls:'kbc-est',  icon:'📋'},
+  {id:'estfu', label:'Estimate Sent | F/U',   cls:'kbc-est',  icon:'📤'},
+  {id:'won',   label:'Job Completed ✓ Paid',  cls:'kbc-won',  icon:'💰'},
+  {id:'unpaid',label:'Completed | Unpaid',    cls:'kbc-lost', icon:'⏳'},
+  {id:'dead',  label:'Dead Lead',             cls:'kbc-dead', icon:'💀', hideable:true}
 ];
 
 var HL_STAGE_MAP={
+  // New Lead
   'new lead':'new','new':'new','incoming':'new',
-  'appointment scheduled':'appt','appointment':'appt','appt scheduled':'appt','scheduled':'appt',
-  'estimate sent':'est','estimate':'est','quote sent':'est','proposal sent':'est',
-  'follow up':'fu','follow-up':'fu','nurture':'fu',
-  'won':'won','closed won':'won','closed':'won','booked':'won',
-  'lost':'lost','closed lost':'lost','not interested':'lost','unqualified':'lost',
-  'dead':'dead','dead lead':'dead','disqualified':'dead','no response':'dead','cold dead':'dead'
+  // Contacted / Follow Up
+  'contacted | follow up':'cont','contacted':'cont','follow up':'cont','follow-up':'cont','nurture':'cont',
+  // Appointment Set
+  'appointment set':'appt','appointment scheduled':'appt','appointment':'appt','appt scheduled':'appt','scheduled':'appt',
+  // Create Estimate
+  'create estimate':'est','estimate':'est','quote':'est','create quote':'est',
+  // Estimate Sent | Follow Up
+  'estimate sent | follow up':'estfu','estimate sent':'estfu','quote sent':'estfu','proposal sent':'estfu','estimate sent | f/u':'estfu',
+  // Job Completed | Collected
+  'job completed | collected':'won','job completed':'won','collected':'won','closed won':'won','won':'won','booked':'won','closed':'won','paid':'won',
+  // Job Completed | Not Collected
+  'job completed | not collected':'unpaid','not collected':'unpaid','job completed | not collected':'unpaid','awaiting payment':'unpaid',
+  // Dead Lead
+  'dead lead':'dead','dead':'dead','disqualified':'dead','lost':'dead','closed lost':'dead','not interested':'dead','unqualified':'dead','no response':'dead'
 };
 
 var leads=JSON.parse(localStorage.getItem('chs_leads_kb')||'[]');
@@ -914,14 +924,29 @@ function setHLBadge(status,color){
 
 function mapHLStage(stageName){
   if(!stageName)return 'new';
-  return HL_STAGE_MAP[stageName.toLowerCase().trim()]||'new';
+  var mapped=HL_STAGE_MAP[stageName.toLowerCase().trim()];
+  if(!mapped){
+    // Log unknown stage names so we can add them to the map
+    console.log('CHS: Unknown HL stage "'+stageName+'" — add to HL_STAGE_MAP to map it correctly. Defaulting to "lost".');
+    return 'lost'; // unknown = treat as lost rather than polluting New Lead
+  }
+  return mapped;
 }
 
 function getHLStageId(colId){
   if(!hlPipelines.length)return null;
   var pipeline=hlPipelines[0];
   if(!pipeline.stages)return null;
-  var nameMap={'new':'New Lead','appt':'Appointment Scheduled','est':'Estimate Sent','fu':'Follow Up','won':'Won','lost':'Lost','dead':'Dead Lead'};
+  var nameMap={
+    'new':'New Lead',
+    'cont':'Contacted | Follow Up',
+    'appt':'Appointment Set',
+    'est':'Create Estimate',
+    'estfu':'Estimate Sent | Follow Up',
+    'won':'Job Completed | Collected',
+    'unpaid':'Job Completed | Not Collected',
+    'dead':'Dead Lead'
+  };
   var target=nameMap[colId]||colId;
   var stage=pipeline.stages.find(function(s){return s.name&&s.name.toLowerCase()===target.toLowerCase();});
   return stage?stage.id:(pipeline.stages[0]?pipeline.stages[0].id:null);
@@ -944,6 +969,7 @@ function fetchHLData(){
       var localLeads=leads.filter(function(l){return !l.hlId;});
       var hlLeads=ops.map(function(op){
         var stageName=op.stage&&op.stage.name?op.stage.name:'';
+        console.log('CHS HL lead: "'+op.name+'" stage="'+stageName+'" → mapped="'+mapHLStage(stageName)+'"');
         var existing=leads.find(function(l){return l.hlId===op.id;});
         return{
           id:'hl-'+op.id,hlId:op.id,
@@ -1397,6 +1423,7 @@ function togLock(n){
   var inp=document.getElementById('tr'+n+'-url');
   var btn=document.getElementById('tr'+n+'-lk');
   var row=document.getElementById('tr'+n+'-url-row');
+  if(!inp||!btn)return;
   locked[n]=!locked[n];
   if(locked[n]){
     // Lock and hide input row
@@ -3048,7 +3075,7 @@ function renderMobKanban(){
   var counts={};
   COLS.forEach(function(c){counts[c.id]=0;});
   leads.forEach(function(l){if(counts[l.stage]!==undefined)counts[l.stage]++;});
-  el.innerHTML=COLS.filter(function(c){return c.id!=='lost'&&!(c.id==='dead'&&deadColHidden);}).map(function(c){
+  el.innerHTML=COLS.filter(function(c){return !(c.id==='dead'&&deadColHidden);}).map(function(c){
     return'<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">'+
       '<span style="font-size:13px;color:var(--cream);">'+c.icon+' '+c.label+'</span>'+
       '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--gold);">'+counts[c.id]+'</span>'+
