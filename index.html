@@ -50,7 +50,7 @@ header{position:relative;z-index:10;background:linear-gradient(135deg,var(--burg
 .wloc{margin-left:auto;font-size:11px;color:var(--muted);}
 
 /* LAYOUT */
-main{position:relative;z-index:1;padding:14px 18px 20px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;}
+main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1600px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;}
 .kstrip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;width:100%;}
 .kpi{background:var(--card);border:1px solid var(--bdr);border-radius:11px;padding:11px 13px;position:relative;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;backdrop-filter:blur(6px);}
 .kpi:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.4);}
@@ -924,21 +924,43 @@ function setHLBadge(status,color){
   badge.style.borderColor=color==='green'?'rgba(82,192,122,.3)':color==='orange'?'rgba(232,114,42,.3)':'rgba(255,255,255,.12)';
 }
 
+// Hardcoded stage ID → column map (from your HighLevel pipeline)
+// These are fetched dynamically below but kept as fallback
+var HL_STAGE_ID_MAP={
+  'adb468b0-7c7e-42b4-9ae9-fad4af5c0ec5':'new',      // New Lead
+  '021fb348-4343-494e-a6a0-41af99b2b0ef':'dead'       // Dead Lead
+  // More will be added as leads move through stages
+};
+
 function getStageNameFromPipeline(op){
-  // GHL v2021 API returns pipelineStageId — look it up in the fetched pipeline
   var stageId=op.pipelineStageId||op.stageId||(op.stage&&op.stage.id)||'';
+
+  // First: try hardcoded ID map (instant, no network dependency)
+  if(stageId&&HL_STAGE_ID_MAP[stageId]){
+    return '__id__'+stageId; // special prefix so mapHLStage knows it's an ID
+  }
+
+  // Second: try fetched pipeline stages
   if(stageId&&hlPipelines.length){
     var pipeline=hlPipelines[0];
-    var stages=pipeline.stages||[];
+    var stages=pipeline.stages||pipeline.pipelineStages||[];
     var match=stages.find(function(s){return s.id===stageId;});
     if(match)return match.name||'';
   }
+
   // Fallback: op.stage.name if present
   return (op.stage&&op.stage.name)?op.stage.name:'';
 }
 
 function mapHLStage(stageName){
   if(!stageName)return 'new';
+
+  // Handle direct ID lookup (prefixed by getStageNameFromPipeline)
+  if(stageName.indexOf('__id__')===0){
+    var id=stageName.replace('__id__','');
+    return HL_STAGE_ID_MAP[id]||'new';
+  }
+
   var mapped=HL_STAGE_MAP[stageName.toLowerCase().trim()];
   if(!mapped){
     // Log unknown stage names so we can add them to the map
@@ -975,14 +997,24 @@ function fetchHLData(){
       if(d.pipelines&&d.pipelines.length>0){
         hlPipelines=d.pipelines;
         hlPipelineId=d.pipelines[0].id;
+        // Log all stage IDs so we can build the complete map
+        var stages=d.pipelines[0].stages||d.pipelines[0].pipelineStages||[];
+        console.log('CHS HL pipeline stages:',JSON.stringify(stages.map(function(s){return{id:s.id,name:s.name};})));
+        // Auto-populate stage ID map from fetched pipeline
+        stages.forEach(function(s){
+          if(s.id&&s.name)HL_STAGE_ID_MAP[s.id]=mapHLStage(s.name);
+        });
+      }else{
+        console.log('CHS HL pipeline fetch response:',JSON.stringify(Object.keys(d)));
       }
       return fetch(HL_BASE+'/opportunities/search?location_id='+HL_LOC+'&limit=50',{headers:HL_HEADERS});
     })
     .then(function(r){return r.json();})
     .then(function(d){
-      var ops=d.opportunities||[];
+      console.log('CHS HL response keys:',JSON.stringify(Object.keys(d)));
+      var ops=d.opportunities||d.data||d.results||[];
       // DEBUG: log first opportunity to see exact API field names
-      if(ops.length>0)console.log('CHS HL first op keys:',JSON.stringify(Object.keys(ops[0])),'\nFirst op:',JSON.stringify(ops[0]).substring(0,500));
+      if(ops.length>0)console.log('CHS HL first op keys:',JSON.stringify(Object.keys(ops[0])),'\nstage field:',JSON.stringify({stage:ops[0].stage,pipelineStageId:ops[0].pipelineStageId,stageId:ops[0].stageId,pipelineStageName:ops[0].pipelineStageName}));
       var localLeads=leads.filter(function(l){return !l.hlId;});
       var hlLeads=ops.map(function(op){
         var stageName=getStageNameFromPipeline(op);
