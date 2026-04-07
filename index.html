@@ -212,7 +212,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1900px;margin:
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:rgba(240,165,0,.28);border-radius:3px;}
 ::-webkit-scrollbar-horizontal{height:4px;}
 /* ══ MOBILE BOTTOM NAV ══ */
-.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:linear-gradient(180deg,rgba(30,5,15,.95),rgba(20,3,10,.99));border-top:1px solid rgba(240,165,0,.22);padding:6px 0 max(6px,env(safe-area-inset-bottom));backdrop-filter:blur(12px);}
+.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:linear-gradient(180deg,rgba(30,5,15,.95),rgba(20,3,10,.99));border-top:1px solid rgba(240,165,0,.22);padding:6px 0 max(6px,env(safe-area-inset-bottom));backdrop-filter:blur(12px);}
 .mob-nav-inner{display:flex;justify-content:space-around;align-items:center;}
 .mnb{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:rgba(255,248,236,.45);cursor:pointer;padding:4px 10px;border-radius:10px;transition:all .2s;font-family:'Nunito',sans-serif;min-width:52px;}
 .mnb.active{color:var(--gold);}
@@ -246,7 +246,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1900px;margin:
   .wloc{display:none;}
 
   /* Main layout — single column */
-  main{padding:10px 10px 14px;}
+  main{padding:10px 10px 80px;}
   .kstrip{grid-template-columns:repeat(3,1fr);gap:7px;}
   .kpi{padding:9px 10px;}
   .kv{font-size:20px;}
@@ -344,28 +344,28 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     <!-- LEFT: QUICK LAUNCH + TASKS -->
     <div style="display:flex;flex-direction:column;gap:12px;" id="mob-more-section" class="mob-section">
       <div class="card">
-        <div class="ch"><span class="ct">🚀 Quick Launch</span></div>
+        <div class="ch"><span class="ct">🚀 Quick Launch</span><span style="font-size:9px;color:var(--muted);">Opens native app if installed</span></div>
         <div class="cb">
           <div class="qlsec">Job Management</div>
           <div class="qlg">
-            <a class="ql" href="https://secure.getjobber.com/home" target="_blank"><span class="qi">🏗️</span><div><div>Jobber</div><div class="qs">Jobs & Invoices</div></div></a>
+            <a class="ql" href="jobber://home" onclick="return mobAppLink(event,'jobber://home','https://secure.getjobber.com/home')"><span class="qi">🏗️</span><div><div>Jobber</div><div class="qs">Jobs & Invoices</div></div></a>
             <a class="ql" href="https://app.redmondgrowth.com/v2/location/lZ8L8FAf6K2niuHoFbaw/opportunities/list" target="_blank"><span class="qi">⚡</span><div><div>High Level</div><div class="qs">CRM & Marketing</div></div></a>
           </div>
           <div class="qlsec">Google</div>
           <div class="qlg">
-            <a class="ql" href="https://mail.google.com" target="_blank"><span class="qi">📧</span><div><div>Gmail</div><div class="qs">Email</div></div></a>
-            <a class="ql" href="https://calendar.google.com" target="_blank"><span class="qi">📅</span><div><div>Calendar</div><div class="qs">Schedule</div></div></a>
-            <a class="ql" href="https://drive.google.com" target="_blank"><span class="qi">📁</span><div><div>Drive</div><div class="qs">Files & Docs</div></div></a>
+            <a class="ql" href="googlegmail://" onclick="return mobAppLink(event,'googlegmail://','https://mail.google.com')"><span class="qi">📧</span><div><div>Gmail</div><div class="qs">Email</div></div></a>
+            <a class="ql" href="googlecalendar://" onclick="return mobAppLink(event,'googlecalendar://','https://calendar.google.com')"><span class="qi">📅</span><div><div>Calendar</div><div class="qs">Schedule</div></div></a>
+            <a class="ql" href="googledrive://" onclick="return mobAppLink(event,'googledrive://','https://drive.google.com')"><span class="qi">📁</span><div><div>Drive</div><div class="qs">Files & Docs</div></div></a>
             <a class="ql" href="https://contacts.google.com" target="_blank"><span class="qi">👥</span><div><div>Contacts</div><div class="qs">Customers</div></div></a>
-            <a class="ql" href="https://tasks.google.com" target="_blank"><span class="qi">✅</span><div><div>Tasks</div><div class="qs">To-do list</div></div></a>
+            <a class="ql" href="googlegmail://" onclick="return mobAppLink(event,'googletasks://','https://tasks.google.com')"><span class="qi">✅</span><div><div>Tasks</div><div class="qs">To-do list</div></div></a>
             <a class="ql" href="https://keep.google.com" target="_blank"><span class="qi">📌</span><div><div>Google Keep</div><div class="qs">Quick notes</div></div></a>
           </div>
           <div class="qlsec">Social & Reviews</div>
           <div class="qlg">
-            <a class="ql" href="https://business.facebook.com" target="_blank"><span class="qi">📘</span><div><div>Meta Business</div><div class="qs">Ads & Suite</div></div></a>
-            <a class="ql" href="https://www.facebook.com/ColumbusHomeSolutions" target="_blank"><span class="qi">👍</span><div><div>Facebook Page</div><div class="qs">CHS Page</div></div></a>
-            <a class="ql" href="https://www.instagram.com" target="_blank"><span class="qi">📸</span><div><div>Instagram</div><div class="qs">CHS Business</div></div></a>
-            <a class="ql" href="https://www.linkedin.com/company/78406351/admin/dashboard/" target="_blank"><span class="qi">💼</span><div><div>LinkedIn</div><div class="qs">CHS Business</div></div></a>
+            <a class="ql" href="fb://page/ColumbusHomeSolutions" onclick="return mobAppLink(event,'fb://profile/ColumbusHomeSolutions','https://business.facebook.com')"><span class="qi">📘</span><div><div>Meta Business</div><div class="qs">Ads & Suite</div></div></a>
+            <a class="ql" href="fb://page/ColumbusHomeSolutions" onclick="return mobAppLink(event,'fb://page/ColumbusHomeSolutions','https://www.facebook.com/ColumbusHomeSolutions')"><span class="qi">👍</span><div><div>Facebook Page</div><div class="qs">CHS Page</div></div></a>
+            <a class="ql" href="instagram://" onclick="return mobAppLink(event,'instagram://','https://www.instagram.com')"><span class="qi">📸</span><div><div>Instagram</div><div class="qs">CHS Business</div></div></a>
+            <a class="ql" href="linkedin://company/78406351" onclick="return mobAppLink(event,'linkedin://company/78406351','https://www.linkedin.com/company/78406351/admin/dashboard/')"><span class="qi">💼</span><div><div>LinkedIn</div><div class="qs">CHS Business</div></div></a>
           </div>
           <div class="qlsec">Advertising</div>
           <div class="qlg s1">
@@ -374,55 +374,34 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
           </div>
           <div class="qlsec">Spreadsheets</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
-            <a class="ql" id="tr1-ql-lnk" href="#" target="_blank" style="flex:1;"><span class="qi">📋</span><div><div>Job Cost Tracker</div><div class="qs">Cost tracking · Dashboard</div></div></a>
-            <button class="lkb" id="tr1-lk" onclick="togLock(1)" title="Lock to hide" style="flex-shrink:0;">🔓</button>
-          </div>
-          <div class="tur" id="tr1-url-row" style="margin-top:4px;">
-            <input class="tui" id="tr1-url" placeholder="Paste Job Tracker link..." oninput="updTr(1,this.value)">
+            <a class="ql" id="tr1-ql-lnk-mob" href="#" onclick="return mobAppLink(event,'googledrive://','#')" target="_blank" style="flex:1;"><span class="qi">📋</span><div><div>Job Cost Tracker</div><div class="qs">Google Sheets</div></div></a>
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
-            <a class="ql gc" id="tr2-ql-lnk" href="#" target="_blank" style="flex:1;"><span class="qi">💰</span><div><div>Wealthy Contractor Tracker</div><div class="qs">Financial growth · Profit planning</div></div></a>
-            <button class="lkb" id="tr2-lk" onclick="togLock(2)" title="Lock to hide" style="flex-shrink:0;">🔓</button>
-          </div>
-          <div class="tur" id="tr2-url-row" style="margin-top:4px;">
-            <input class="tui" id="tr2-url" placeholder="Paste Wealthy Contractor link..." oninput="updTr(2,this.value)">
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
-            <a class="ql" id="sub-lnk" href="https://drive.google.com" target="_blank" style="flex:1;"><span class="qi">👷</span><div><div>Subcontractor Sheet</div><div class="qs">Rates & contacts</div></div></a>
-            <button class="lkb" id="sub-lk" onclick="togSubLock()" title="Lock to hide" style="flex-shrink:0;">🔓</button>
-          </div>
-          <div class="tur" id="sub-url-row" style="margin-top:4px;">
-            <input class="tui" id="sub-url" placeholder="Paste Subcontractor Sheet link..." oninput="updSub(this.value)">
+            <a class="ql gc" id="tr2-ql-lnk-mob" href="#" onclick="return mobAppLink(event,'googledrive://','#')" target="_blank" style="flex:1;"><span class="qi">💰</span><div><div>WC Tracker</div><div class="qs">Google Sheets</div></div></a>
           </div>
         </div>
       </div>
 
-      <!-- CONTENT CREATION -->
+      <!-- Content Creation — mobile-relevant only -->
       <div class="card">
-        <div class="ch"><span class="ct">🎨 Content Creation</span></div>
+        <div class="ch"><span class="ct">🎨 Content & Social</span></div>
         <div class="cb">
           <div class="qlg">
-            <a class="ql" href="https://account.squarespace.com/" target="_blank"><span class="qi">🌐</span><div><div>Website Login</div><div class="qs">Squarespace</div></div></a>
-            <a class="ql" href="https://www.canva.com" target="_blank"><span class="qi">🎨</span><div><div>Canva</div><div class="qs">Design & graphics</div></div></a>
-            <a class="ql" href="https://www.capcut.com" target="_blank"><span class="qi">🎬</span><div><div>CapCut</div><div class="qs">Video editing</div></div></a>
-            <a class="ql" href="https://trends.google.com" target="_blank"><span class="qi">📈</span><div><div>Google Trends</div><div class="qs">Content ideas</div></div></a>
-            <a class="ql" href="https://firefly.adobe.com" target="_blank"><span class="qi">✨</span><div><div>Adobe Firefly</div><div class="qs">AI image generation</div></div></a>
-            <a class="ql" href="https://ideogram.ai" target="_blank"><span class="qi">🖼️</span><div><div>Ideogram</div><div class="qs">AI text-in-image</div></div></a>
+            <a class="ql" href="canva://" onclick="return mobAppLink(event,'canva://','https://www.canva.com')"><span class="qi">🎨</span><div><div>Canva</div><div class="qs">Design</div></div></a>
+            <a class="ql" href="capcut://" onclick="return mobAppLink(event,'capcut://','https://www.capcut.com')"><span class="qi">🎬</span><div><div>CapCut</div><div class="qs">Video editing</div></div></a>
           </div>
         </div>
       </div>
 
-      <!-- BUSINESS BILLS -->
+      <!-- Business Bills — mobile banking -->
       <div class="card">
         <div class="ch"><span class="ct">💳 Business Bills</span></div>
         <div class="cb">
           <div class="qlg">
             <a class="ql" href="https://my.afcu.org/DashboardV2" target="_blank"><span class="qi">🏦</span><div><div>AFCU</div><div class="qs">Credit Union</div></div></a>
-            <a class="ql" href="https://app.nav.com/home" target="_blank"><span class="qi">📊</span><div><div>Nav</div><div class="qs">Business credit</div></div></a>
             <a class="ql" href="https://global.americanexpress.com/dashboard" target="_blank"><span class="qi">💳</span><div><div>Amex</div><div class="qs">Credit card</div></div></a>
-            <a class="ql" href="https://spend.bill.com/companies/Q29tcGFueTo0MDQwNjM=/home/dashboard" target="_blank"><span class="qi">🧾</span><div><div>Bill</div><div class="qs">Bill pay</div></div></a>
-            <a class="ql" href="https://lowes.syf.com/commercial/summary" target="_blank"><span class="qi">🔨</span><div><div>Lowes</div><div class="qs">Commercial account</div></div></a>
             <a class="ql" href="https://app.bluevine.com/dashboard/flexcredit/" target="_blank"><span class="qi">💙</span><div><div>Bluevine</div><div class="qs">Business banking</div></div></a>
+            <a class="ql" href="https://lowes.syf.com/commercial/summary" target="_blank"><span class="qi">🔨</span><div><div>Lowes</div><div class="qs">Commercial acct</div></div></a>
           </div>
         </div>
       </div>
@@ -817,6 +796,17 @@ window.onerror=function(msg,src,line,col,err){
   }
   return false;
 };
+
+// ── MOBILE APP DEEP LINKS ─────────────────────────────────────
+// Tries to open native app first; falls back to web URL after 500ms
+function mobAppLink(e, appUrl, webUrl){
+  if(!isMobile()){return true;} // desktop — use normal href
+  e.preventDefault();
+  var fallback=setTimeout(function(){window.open(webUrl,'_blank');},600);
+  window.location.href=appUrl;
+  window.addEventListener('blur',function(){clearTimeout(fallback);},{once:true});
+  return false;
+}
 
 // ── WEATHER ──────────────────────────────────────────
 var WC_SHEET_ID='%%WC_SHEET_ID%%';
