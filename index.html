@@ -50,7 +50,7 @@ header{position:relative;z-index:10;background:linear-gradient(135deg,var(--burg
 .wloc{margin-left:auto;font-size:11px;color:var(--muted);}
 
 /* LAYOUT */
-main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1440px;width:100%;margin-left:auto;margin-right:auto;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;}
+main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1440px;width:100%;margin:0 auto;box-sizing:border-box;}
 .kstrip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;min-width:0;}
 .kpi{background:var(--card);border:1px solid var(--bdr);border-radius:11px;padding:11px 13px;position:relative;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;backdrop-filter:blur(6px);}
 .kpi:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.4);}
@@ -63,7 +63,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1440px;width:1
 .ke{font-size:9px;color:rgba(255,255,255,.18);position:absolute;top:7px;right:8px;}.ke:hover{color:var(--gold);}
 
 /* 3-COL GRID */
-.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:start;min-width:0;}
+.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:start;}
 
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:13px;backdrop-filter:blur(8px);overflow:hidden;}
@@ -327,13 +327,17 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
 </div>
 
 <main>
-  <!-- KPI STRIP -->
-  <div>
+  <style>@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}</style>
+
+  <!-- SINGLE GRID: KPI strip (full-span) + 3 columns below -->
+  <div class="mgrid">
+
+    <!-- KPI STRIP — spans all 3 columns -->
+    <div style="grid-column:1/-1;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
         <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Live KPIs — Job Tracker</div>
         <div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;"></span><span id="kpi-updated">Connecting...</span></div>
       </div>
-      <style>@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}</style>
       <div class="kstrip">
         <div class="kpi"><div class="ki">🔨</div><div class="kl">Jobs In Progress</div><div class="kv" id="kv-ji"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Active jobs</div></div>
         <div class="kpi g"><div class="ki">💵</div><div class="kl">Revenue This Week</div><div class="kv" id="kv-wr"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Collections</div></div>
@@ -342,10 +346,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
         <div class="kpi g"><div class="ki">📈</div><div class="kl">Monthly Gross Revenue</div><div class="kv" id="kv-mp"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">This month</div></div>
         <div class="kpi o"><div class="ki">💰</div><div class="kl">Yearly Gross Revenue</div><div class="kv" id="kv-ol"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">YTD 2026</div></div>
       </div>
-  </div>
-
-  <!-- MAIN 3-COL GRID -->
-  <div class="mgrid">
+    </div>
 
     <!-- LEFT: QUICK LAUNCH + TASKS -->
     <div style="display:flex;flex-direction:column;gap:12px;" id="mob-more-section" class="mob-section">
