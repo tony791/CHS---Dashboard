@@ -27,7 +27,7 @@ body{font-family:'Nunito',sans-serif;background:var(--dark);color:var(--cream);m
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 15% 0%,rgba(196,57,26,.18) 0%,transparent 55%),radial-gradient(ellipse at 85% 100%,rgba(240,165,0,.11) 0%,transparent 55%);pointer-events:none;z-index:0;}
 
 /* HEADER */
-header{position:relative;z-index:10;background:linear-gradient(135deg,var(--burg) 0%,#2A0812 100%);border-bottom:2px solid var(--gold);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:72px;box-shadow:0 4px 28px rgba(0,0,0,.5);}
+header{position:relative;z-index:10;background:linear-gradient(135deg,var(--burg) 0%,#2A0812 100%);border-bottom:2px solid var(--gold);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:72px;box-shadow:0 4px 28px rgba(0,0,0,.5);}
 .hl{display:flex;align-items:center;gap:13px;}
 .logo{height:54px;width:54px;object-fit:contain;}
 .bn{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--gold);text-shadow:0 0 18px rgba(240,165,0,.4);}
@@ -42,7 +42,7 @@ header{position:relative;z-index:10;background:linear-gradient(135deg,var(--burg
 .cnb:hover{background:rgba(240,165,0,.25);}
 
 /* WEATHER */
-.wbar{position:relative;z-index:9;background:rgba(20,4,10,.85);border-bottom:1px solid rgba(240,165,0,.14);padding:6px 24px;display:flex;align-items:center;gap:20px;}
+.wbar{position:relative;z-index:9;background:rgba(20,4,10,.85);border-bottom:1px solid rgba(240,165,0,.14);padding:6px 20px;display:flex;align-items:center;gap:20px;}
 .wm{display:flex;align-items:center;gap:10px;}
 #w-ico{font-size:24px;}#w-tmp{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--gold);}
 .wdb strong{color:var(--cream);font-size:13px;display:block;}.wdb span{font-size:11px;color:var(--muted);}
@@ -50,7 +50,7 @@ header{position:relative;z-index:10;background:linear-gradient(135deg,var(--burg
 .wloc{margin-left:auto;font-size:11px;color:var(--muted);}
 
 /* LAYOUT */
-main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1600px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;}
+main{position:relative;z-index:1;padding:14px 20px 20px;max-width:1440px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;}
 .kstrip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;width:100%;}
 .kpi{background:var(--card);border:1px solid var(--bdr);border-radius:11px;padding:11px 13px;position:relative;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;backdrop-filter:blur(6px);}
 .kpi:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.4);}
@@ -63,7 +63,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1600px;width:1
 .ke{font-size:9px;color:rgba(255,255,255,.18);position:absolute;top:7px;right:8px;}.ke:hover{color:var(--gold);}
 
 /* 3-COL GRID */
-.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:start;width:100%;}
+.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:start;grid-column:1/-1;}
 
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:13px;backdrop-filter:blur(8px);overflow:hidden;}
@@ -327,19 +327,26 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
 </div>
 
 <main>
-  <!-- KPI STRIP -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-    <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Live KPIs — Job Tracker</div>
-    <div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;"></span><span id="kpi-updated">Connecting...</span></div>
-  </div>
-  <style>@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}</style>
-  <div class="kstrip">
-    <div class="kpi"><div class="ki">🔨</div><div class="kl">Jobs In Progress</div><div class="kv" id="kv-ji"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Active jobs</div></div>
-    <div class="kpi g"><div class="ki">💵</div><div class="kl">Revenue This Week</div><div class="kv" id="kv-wr"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Collections</div></div>
-    <div class="kpi r"><div class="ki">📄</div><div class="kl">Unpaid Invoices</div><div class="kv" id="kv-ui"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Outstanding</div></div>
-    <div class="kpi o"><div class="ki">📅</div><div class="kl">Pymt Scheduled</div><div class="kv" id="kv-ps"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Coming up</div></div>
-    <div class="kpi g"><div class="ki">📈</div><div class="kl">Monthly Gross Revenue</div><div class="kv" id="kv-mp"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">This month</div></div>
-    <div class="kpi o"><div class="ki">💰</div><div class="kl">Yearly Gross Revenue</div><div class="kv" id="kv-ol"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">YTD 2026</div></div>
+  <!-- LAYOUT WRAPPER: KPI strip + 3-col grid share same column structure -->
+  <div style="display:grid;grid-template-columns:300px 1fr 300px;gap:12px;width:100%;">
+
+    <!-- KPI STRIP — spans all 3 columns -->
+    <div style="grid-column:1/-1;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Live KPIs — Job Tracker</div>
+        <div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;"></span><span id="kpi-updated">Connecting...</span></div>
+      </div>
+      <style>@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}</style>
+      <div class="kstrip">
+        <div class="kpi"><div class="ki">🔨</div><div class="kl">Jobs In Progress</div><div class="kv" id="kv-ji"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Active jobs</div></div>
+        <div class="kpi g"><div class="ki">💵</div><div class="kl">Revenue This Week</div><div class="kv" id="kv-wr"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Collections</div></div>
+        <div class="kpi r"><div class="ki">📄</div><div class="kl">Unpaid Invoices</div><div class="kv" id="kv-ui"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Outstanding</div></div>
+        <div class="kpi o"><div class="ki">📅</div><div class="kl">Pymt Scheduled</div><div class="kv" id="kv-ps"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">Coming up</div></div>
+        <div class="kpi g"><div class="ki">📈</div><div class="kl">Monthly Gross Revenue</div><div class="kv" id="kv-mp"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">This month</div></div>
+        <div class="kpi o"><div class="ki">💰</div><div class="kl">Yearly Gross Revenue</div><div class="kv" id="kv-ol"><span class="spin" style="width:16px;height:16px;"></span></div><div class="ks">YTD 2026</div></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- MAIN 3-COL GRID -->
