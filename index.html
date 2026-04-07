@@ -922,6 +922,19 @@ function setHLBadge(status,color){
   badge.style.borderColor=color==='green'?'rgba(82,192,122,.3)':color==='orange'?'rgba(232,114,42,.3)':'rgba(255,255,255,.12)';
 }
 
+function getStageNameFromPipeline(op){
+  // GHL v2021 API returns pipelineStageId — look it up in the fetched pipeline
+  var stageId=op.pipelineStageId||op.stageId||(op.stage&&op.stage.id)||'';
+  if(stageId&&hlPipelines.length){
+    var pipeline=hlPipelines[0];
+    var stages=pipeline.stages||[];
+    var match=stages.find(function(s){return s.id===stageId;});
+    if(match)return match.name||'';
+  }
+  // Fallback: op.stage.name if present
+  return (op.stage&&op.stage.name)?op.stage.name:'';
+}
+
 function mapHLStage(stageName){
   if(!stageName)return 'new';
   var mapped=HL_STAGE_MAP[stageName.toLowerCase().trim()];
@@ -968,8 +981,8 @@ function fetchHLData(){
       var ops=d.opportunities||[];
       var localLeads=leads.filter(function(l){return !l.hlId;});
       var hlLeads=ops.map(function(op){
-        var stageName=op.stage&&op.stage.name?op.stage.name:'';
-        console.log('CHS HL lead: "'+op.name+'" stage="'+stageName+'" → mapped="'+mapHLStage(stageName)+'"');
+        var stageName=getStageNameFromPipeline(op);
+        console.log('CHS HL lead: "'+(op.name||op.id)+'" stageId="'+(op.pipelineStageId||'')+'" stageName="'+stageName+'" → mapped="'+mapHLStage(stageName)+'"');
         var existing=leads.find(function(l){return l.hlId===op.id;});
         return{
           id:'hl-'+op.id,hlId:op.id,
@@ -1457,13 +1470,15 @@ function togSubLock(){
   var inp=document.getElementById('sub-url');
   var btn=document.getElementById('sub-lk');
   var row=document.getElementById('sub-url-row');
+  if(!inp||!btn)return;
   subLocked=!subLocked;
   inp.disabled=subLocked;
   btn.textContent=subLocked?'🔒':'🔓';
   if(row)row.style.display=subLocked?'none':'flex';
   localStorage.setItem('chs_sub_locked',subLocked?'1':'0');
 }
-var ss=localStorage.getItem('chs_sub');if(ss){document.getElementById('sub-lnk').href=ss;document.getElementById('sub-url').value=ss;}
+var ss=localStorage.getItem('chs_sub');
+if(ss){var sl=document.getElementById('sub-lnk'),su=document.getElementById('sub-url');if(sl)sl.href=ss;if(su)su.value=ss;}
 if(localStorage.getItem('chs_sub_locked')==='1')togSubLock();
 
 // ── SMART NOTES ────────────────────────────────────────
