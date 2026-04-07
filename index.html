@@ -63,7 +63,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1440px;width:1
 .ke{font-size:9px;color:rgba(255,255,255,.18);position:absolute;top:7px;right:8px;}.ke:hover{color:var(--gold);}
 
 /* 3-COL GRID */
-.mgrid{display:grid;grid-template-columns:300px minmax(0,1fr) 300px;gap:12px;align-items:start;width:100%;}
+.mgrid{display:grid;grid-template-columns:300px 1fr 300px;gap:12px;align-items:start;width:100%;}
 
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:13px;backdrop-filter:blur(8px);overflow:hidden;}
@@ -416,7 +416,7 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     </div>
 
     <!-- CENTER: BUSINESS TRACKERS + CALENDAR + KANBAN -->
-    <div style="display:flex;flex-direction:column;gap:12px;" id="mob-home-section" class="mob-section mob-active">
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0;" id="mob-home-section" class="mob-section mob-active">
       <div class="card" style="overflow:hidden;padding:0;">
         <!-- TICKER HEADER -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid rgba(240,165,0,.12);">
@@ -809,7 +809,7 @@ window.onerror=function(msg,src,line,col,err){
 // ── MOBILE APP DEEP LINKS ─────────────────────────────────────
 // Tries to open native app first; falls back to web URL after 500ms
 function mobAppLink(e, appUrl, webUrl){
-  if(!isMobile()){return true;} // desktop — use normal href
+  if(!isMobile()){e.preventDefault();window.open(webUrl,'_blank');return false;} // desktop — open web URL
   e.preventDefault();
   var fallback=setTimeout(function(){window.open(webUrl,'_blank');},600);
   window.location.href=appUrl;
