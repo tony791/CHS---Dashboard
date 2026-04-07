@@ -63,7 +63,7 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1800px;width:1
 .ke{font-size:9px;color:rgba(255,255,255,.18);position:absolute;top:7px;right:8px;}.ke:hover{color:var(--gold);}
 
 /* 3-COL GRID */
-.mgrid{display:grid;grid-template-columns:320px 1fr 280px;gap:12px;align-items:start;width:100%;}
+.mgrid{display:grid;grid-template-columns:320px 1fr 320px;gap:12px;align-items:start;width:100%;}
 
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:13px;backdrop-filter:blur(8px);overflow:hidden;}
@@ -1074,6 +1074,12 @@ function deleteHLOpportunity(hlId){
   fetch(HL_BASE+'/opportunities/'+hlId,{method:'DELETE',headers:HL_HEADERS}).catch(function(){});
 }
 
+// Reset stale column-hide states if this is first load of this version
+if(localStorage.getItem('chs_kb_ver')!=='2'){
+  localStorage.removeItem('chs_dead_hidden');
+  localStorage.removeItem('chs_won_hidden');
+  localStorage.setItem('chs_kb_ver','2');
+}
 var deadColHidden=JSON.parse(localStorage.getItem('chs_dead_hidden')||'false');
 var wonColHidden=JSON.parse(localStorage.getItem('chs_won_hidden')||'false');
 
@@ -1091,6 +1097,8 @@ function toggleWonCol(){
 
 function renderKanban(){
   var total=leads.length;
+  var deadCount=leads.filter(function(l){return l.stage==='dead';}).length;
+  console.log('CHS renderKanban: '+total+' total leads, '+deadCount+' dead, deadColHidden='+deadColHidden);
   document.getElementById('kb-total').textContent=total+' lead'+(total!==1?'s':'');
   // Update toggle button labels
   var deadBtn=document.getElementById('dead-col-toggle');
