@@ -861,6 +861,14 @@ if(cachedW){
   try{applyWeather(JSON.parse(cachedW));}catch(e){}
 }
 
+// Pollers skip work while the tab is hidden (fewer API calls, less battery drain)
+function intervalWhenVisible(fn, ms){
+  return setInterval(function(){
+    if(document.hidden)return;
+    try{fn();}catch(e){console.log('interval:',e);}
+  }, ms);
+}
+
 function fetchWeather(){
   var url='https://api.open-meteo.com/v1/forecast?latitude='+NLR_LAT+'&longitude='+NLR_LON
     +'&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code'
@@ -883,7 +891,7 @@ function fetchWeather(){
     });
 }
 fetchWeather();
-setInterval(fetchWeather,30*60*1000);
+intervalWhenVisible(fetchWeather,30*60*1000);
 
 
 // ── KPI ──────────────────────────────────────────────
@@ -1014,7 +1022,10 @@ function getHLStageId(colId){
   return stage?stage.id:(pipeline.stages[0]?pipeline.stages[0].id:null);
 }
 
+var _hlFetchInFlight=false;
 function fetchHLData(){
+  if(_hlFetchInFlight)return;
+  _hlFetchInFlight=true;
   setHLBadge('Syncing...','orange');
   fetch(HL_BASE+'/opportunities/pipelines?locationId='+HL_LOC,{headers:HL_HEADERS})
     .then(function(r){return r.json();})
@@ -1063,7 +1074,8 @@ function fetchHLData(){
       console.log('HL error:',e);
       setHLBadge('HL Offline — Local Mode','');
       renderKanban();
-    });
+    })
+    .then(function(){_hlFetchInFlight=false;});
 }
 
 function createHLOpportunity(lead){
@@ -1212,7 +1224,7 @@ function saveLead(){
 }
 
 fetchHLData();
-setInterval(fetchHLData,5*60*1000);
+intervalWhenVisible(fetchHLData,5*60*1000);
 
 // ── TASKS ──────────────────────────────────────────────
 var tasks=JSON.parse(localStorage.getItem('chs_tasks')||'[]'),tFilter='all';
@@ -1222,14 +1234,14 @@ var gTasksConnected=false;
 var gTasksAccessToken=null;
 
 function fetchGoogleTasks(){
-  if(!gTasksConnected||!gTasksAccessToken)return;
-  fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists',{
+  if(!gTasksConnected||!gTasksAccessToken)return Promise.resolve();
+  return fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists',{
     headers:{'Authorization':'Bearer '+gTasksAccessToken}
   })
   .then(function(r){return r.json();})
   .then(function(d){
     var lists=d.items||[];
-    if(!lists.length)return;
+    if(!lists.length)return Promise.resolve();
     var promises=lists.map(function(list){
       // showHidden=true so subtasks (which can be hidden) are included
       return fetch('https://tasks.googleapis.com/tasks/v1/lists/'+list.id+'/tasks?showCompleted=false&showHidden=true&maxResults=100',{
@@ -2412,6 +2424,7 @@ function sheetsWriteHeaders(){
 }
 
 // ── OAUTH CONFIGURATION ────────────────────────────────
+var _oauthMeetInterval=null,_oauthCalInterval=null;
 // Handle token from redirect (implicit flow — token in URL hash)
 function checkOAuthRedirect(){
   var hash=window.location.hash;
@@ -2437,8 +2450,10 @@ function onOAuthConnected(){
   fetchGoogleMeetings();
   fetchOAuthCalendar();
   startTasksPolling();
-  setInterval(fetchGoogleMeetings, 5*60*1000);
-  setInterval(fetchOAuthCalendar, 10*60*1000);
+  if(_oauthMeetInterval)clearInterval(_oauthMeetInterval);
+  if(_oauthCalInterval)clearInterval(_oauthCalInterval);
+  _oauthMeetInterval=intervalWhenVisible(fetchGoogleMeetings,5*60*1000);
+  _oauthCalInterval=intervalWhenVisible(fetchOAuthCalendar,10*60*1000);
   updateSyncBadge();
   // Update sheet badge to show write access
   var snBadge=document.getElementById('sn-sheet-badge');
@@ -2589,7 +2604,7 @@ function fetchSheetKPIs(){
 
 // Auto-refresh KPIs every 5 minutes
 fetchSheetKPIs();
-setInterval(fetchSheetKPIs, 5*60*1000);
+intervalWhenVisible(fetchSheetKPIs,5*60*1000);
 
 function fetchWCData(){
   var today=new Date();
@@ -2684,7 +2699,7 @@ function fetchWCData(){
 }
 
 fetchWCData();
-setInterval(fetchWCData, 5*60*1000);
+intervalWhenVisible(fetchWCData,5*60*1000);
 
 // ── REFRESH ──────────────────────────────────────────────
 // ── CUSTOM OAUTH CALENDAR ────────────────────────────────
@@ -2860,6 +2875,7 @@ function selectDay(ds){
   renderCalendar();
   var evs=getEventsForDate(calSelectedDate);
   var list=document.getElementById('cal-event-list');
+  if(!list)return;
   if(!evs.length){list.style.display='none';return;}
   list.style.display='block';
   var dateStr=calSelectedDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
@@ -2878,7 +2894,8 @@ function selectDay(ds){
 
 function fetchOAuthCalendar(){
   if(!oauthToken){return;}
-  document.getElementById('cal-loading').style.display='none';
+  var calLoad=document.getElementById('cal-loading');
+  if(calLoad)calLoad.style.display='none';
   var now=new Date();
   var start=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString();
   var end=new Date(now.getFullYear(),now.getMonth()+3,0).toISOString();
@@ -2975,7 +2992,7 @@ function fetchJobberMetrics(){
     }).catch(function(){});
 }
 setTimeout(fetchJobberMetrics,2000);
-setInterval(fetchJobberMetrics,10*60*1000);
+intervalWhenVisible(fetchJobberMetrics,10*60*1000);
 // ── GOOGLE TASKS LIVE SYNC ────────────────────────────────────
 // Polls every 30 s when tab is active; fires instantly on tab focus.
 var _tasksInterval=null;
@@ -2990,9 +3007,7 @@ function tasksHash(){
 function fetchTasksAndFlash(){
   if(!gTasksConnected)return;
   var prevHash=_lastTasksHash;
-  fetchGoogleTasks();
-  // After fetch completes renderTasks runs — check if anything changed
-  setTimeout(function(){
+  fetchGoogleTasks().then(function(){
     var newHash=tasksHash();
     if(prevHash&&newHash!==prevHash){
       _lastTasksHash=newHash;
@@ -3006,7 +3021,7 @@ function fetchTasksAndFlash(){
     }else{
       _lastTasksHash=newHash;
     }
-  },2000);
+  });
 }
 
 function startTasksPolling(){
@@ -3102,8 +3117,8 @@ function syncMobKPIs(){
     if(s&&d)d.textContent=s.textContent;
   });
 }
-// Sync every 5 seconds while mobile view visible
-setInterval(function(){if(isMobile())syncMobKPIs();},5000);
+// Mirror mobile KPI strip when in mobile layout (tab visible); 15s is enough vs desktop updates
+intervalWhenVisible(function(){if(isMobile())syncMobKPIs();},15000);
 
 // Mobile task list render — mirrors desktop but optimised for touch
 function renderMobTasks(){
@@ -3235,8 +3250,6 @@ function renderMobCalendar(){
     });
   }
 }
-// Sync calendar to mobile whenever it re-renders
-var _origRenderCalendar=window.renderCalendar||(function(){});
 
 // Hook into section switches to update mobile content
 function loadMobNoteHistory(){
