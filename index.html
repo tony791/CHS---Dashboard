@@ -944,6 +944,13 @@ var dragId=null;
 
 function saveLeads(){localStorage.setItem('chs_leads_kb',JSON.stringify(leads));}
 
+// Older builds mapped unknown HL stages to 'lost', which is not a kanban column — recover those cards
+(function(){
+  var fix=false;
+  leads.forEach(function(l){if(l.stage==='lost'){l.stage='dead';fix=true;}});
+  if(fix)saveLeads();
+})();
+
 function setHLBadge(status,color){
   var dot=document.getElementById('hl-sync-dot');
   var txt=document.getElementById('hl-sync-txt');
@@ -973,10 +980,12 @@ function getStageNameFromPipeline(op){
     return '__id__'+stageId; // special prefix so mapHLStage knows it's an ID
   }
 
-  // Second: try fetched pipeline stages
+  // Second: try the pipeline this opportunity belongs to (not always pipelines[0])
   if(stageId&&hlPipelines.length){
-    var pipeline=hlPipelines[0];
-    var stages=pipeline.stages||pipeline.pipelineStages||[];
+    var pipeline=null;
+    if(op.pipelineId)pipeline=hlPipelines.find(function(p){return p.id===op.pipelineId;});
+    if(!pipeline)pipeline=hlPipelines[0];
+    var stages=hlPipelineStages(pipeline);
     var match=stages.find(function(s){return s.id===stageId;});
     if(match)return match.name||'';
   }
@@ -997,16 +1006,23 @@ function mapHLStage(stageName){
   var mapped=HL_STAGE_MAP[stageName.toLowerCase().trim()];
   if(!mapped){
     // Log unknown stage names so we can add them to the map
-    console.log('CHS: Unknown HL stage "'+stageName+'" — add to HL_STAGE_MAP to map it correctly. Defaulting to "lost".');
-    return 'lost'; // unknown = treat as lost rather than polluting New Lead
+    console.log('CHS: Unknown HL stage "'+stageName+'" — add to HL_STAGE_MAP to map it correctly. Defaulting to Dead Lead column.');
+    return 'dead'; // must match a COLS id (was 'lost', which has no column — cards vanished from the board)
   }
   return mapped;
 }
 
-function getHLStageId(colId){
+function hlPipelineStages(p){
+  if(!p)return[];
+  return p.stages||p.pipelineStages||[];
+}
+
+function getHLStageId(colId,pipelineId){
   if(!hlPipelines.length)return null;
-  var pipeline=hlPipelines[0];
-  if(!pipeline.stages)return null;
+  var pid=pipelineId||hlPipelineId||(hlPipelines[0]&&hlPipelines[0].id);
+  var pipeline=hlPipelines.find(function(p){return p.id===pid;})||hlPipelines[0];
+  var stages=hlPipelineStages(pipeline);
+  if(!stages.length)return null;
   var nameMap={
     'new':'New Lead',
     'cont':'Contacted | Follow Up',
@@ -1018,13 +1034,13 @@ function getHLStageId(colId){
     'dead':'Dead Lead'
   };
   var target=nameMap[colId]||colId;
-  var stage=pipeline.stages.find(function(s){return s.name&&s.name.toLowerCase()===target.toLowerCase();});
-  return stage?stage.id:(pipeline.stages[0]?pipeline.stages[0].id:null);
+  var stage=stages.find(function(s){return s.name&&s.name.toLowerCase()===target.toLowerCase();});
+  return stage?stage.id:(stages[0]?stages[0].id:null);
 }
 
-var _hlFetchInFlight=false;
+var _hlFetchInFlight=false,_hlFetchQueued=false;
 function fetchHLData(){
-  if(_hlFetchInFlight)return;
+  if(_hlFetchInFlight){_hlFetchQueued=true;return;}
   _hlFetchInFlight=true;
   setHLBadge('Syncing...','orange');
   fetch(HL_BASE+'/opportunities/pipelines?locationId='+HL_LOC,{headers:HL_HEADERS})
@@ -1033,24 +1049,37 @@ function fetchHLData(){
       if(d.pipelines&&d.pipelines.length>0){
         hlPipelines=d.pipelines;
         hlPipelineId=d.pipelines[0].id;
-        // Log all stage IDs so we can build the complete map
-        var stages=d.pipelines[0].stages||d.pipelines[0].pipelineStages||[];
-        console.log('CHS HL pipeline stages:',JSON.stringify(stages.map(function(s){return{id:s.id,name:s.name};})));
-        // Auto-populate stage ID map from fetched pipeline
-        stages.forEach(function(s){
-          if(s.id&&s.name)HL_STAGE_ID_MAP[s.id]=mapHLStage(s.name);
+        // Log + map stages from every pipeline (stage UUIDs are per-pipeline; first pipeline only was wrong for multi-pipeline accounts)
+        hlPipelines.forEach(function(p){
+          var st=hlPipelineStages(p);
+          console.log('CHS HL pipeline "'+(p.name||p.id)+'" stages:',JSON.stringify(st.map(function(s){return{id:s.id,name:s.name};})));
+          st.forEach(function(s){
+            if(s.id&&s.name)HL_STAGE_ID_MAP[s.id]=mapHLStage(s.name);
+          });
         });
       }else{
         console.log('CHS HL pipeline fetch response:',JSON.stringify(Object.keys(d)));
       }
-      return fetch(HL_BASE+'/opportunities/search?location_id='+HL_LOC+'&limit=50',{headers:HL_HEADERS});
+      // status=all: default search often excludes won/lost so moves in HL never appeared; limit max 100 per API
+      return fetch(HL_BASE+'/opportunities/search?location_id='+encodeURIComponent(HL_LOC)+'&limit=100&status=all',{headers:HL_HEADERS});
     })
     .then(function(r){return r.json();})
     .then(function(d){
       console.log('CHS HL response keys:',JSON.stringify(Object.keys(d)));
       var ops=d.opportunities||d.data||d.results||[];
       // DEBUG: log first opportunity to see exact API field names
-      if(ops.length>0)console.log('CHS HL first op keys:',JSON.stringify(Object.keys(ops[0])),'\nstage field:',JSON.stringify({stage:ops[0].stage,pipelineStageId:ops[0].pipelineStageId,stageId:ops[0].stageId,pipelineStageName:ops[0].pipelineStageName}));
+      if(ops.length>0)console.log('CHS HL first op keys:',JSON.stringify(Object.keys(ops[0])),'\nstage field:',JSON.stringify({stage:ops[0].stage,pipelineStageId:ops[0].pipelineStageId,stageId:ops[0].stageId,pipelineStageName:ops[0].pipelineStageName,pipelineId:ops[0].pipelineId}));
+      // Prefer the pipeline that actually holds your opportunities (avoids wrong stage IDs when create/sync used pipelines[0] only)
+      var pidCounts={};
+      ops.forEach(function(op){
+        var pid=op.pipelineId;
+        if(pid)pidCounts[pid]=(pidCounts[pid]||0)+1;
+      });
+      var bestPid=null,bestN=0;
+      Object.keys(pidCounts).forEach(function(pid){
+        if(pidCounts[pid]>bestN){bestN=pidCounts[pid];bestPid=pid;}
+      });
+      if(bestPid)hlPipelineId=bestPid;
       var localLeads=leads.filter(function(l){return !l.hlId;});
       var hlLeads=ops.map(function(op){
         var stageName=getStageNameFromPipeline(op);
@@ -1058,6 +1087,7 @@ function fetchHLData(){
         var existing=leads.find(function(l){return l.hlId===op.id;});
         return{
           id:'hl-'+op.id,hlId:op.id,
+          pipelineId:op.pipelineId||hlPipelineId,
           name:op.name||(op.contact&&op.contact.name)||'Unknown',
           contact:op.contact&&op.contact.phone?op.contact.phone:'',
           desc:op.source||'',
@@ -1075,31 +1105,45 @@ function fetchHLData(){
       setHLBadge('HL Offline — Local Mode','');
       renderKanban();
     })
-    .then(function(){_hlFetchInFlight=false;});
+    .then(function(){
+      _hlFetchInFlight=false;
+      if(_hlFetchQueued){_hlFetchQueued=false;fetchHLData();}
+    });
 }
 
 function createHLOpportunity(lead){
   if(!hlPipelineId)return;
   var body={title:lead.name,pipelineId:hlPipelineId,locationId:HL_LOC,status:'open',source:lead.desc||'CHS Dashboard'};
-  var stageId=getHLStageId(lead.stage);
+  var stageId=getHLStageId(lead.stage,hlPipelineId);
   if(stageId)body.pipelineStageId=stageId;
   if(lead.contact)body.contact={phone:lead.contact};
   fetch(HL_BASE+'/opportunities/',{method:'POST',headers:HL_HEADERS,body:JSON.stringify(body)})
     .then(function(r){return r.json();})
     .then(function(d){
-      if(d.opportunity&&d.opportunity.id){lead.hlId=d.opportunity.id;lead.id='hl-'+d.opportunity.id;saveLeads();}
+      if(d.opportunity&&d.opportunity.id){
+        lead.hlId=d.opportunity.id;lead.id='hl-'+d.opportunity.id;
+        lead.pipelineId=d.opportunity.pipelineId||hlPipelineId;
+        saveLeads();
+      }
       setHLBadge('HL Synced ✓','green');
     }).catch(function(){setHLBadge('Sync Error','orange');});
 }
 
 function updateHLStage(lead,newStage){
   if(!lead.hlId)return;
-  var stageId=getHLStageId(newStage);
-  var body={status:newStage==='won'?'won':newStage==='lost'?'lost':'open'};
+  var stageId=getHLStageId(newStage,lead.pipelineId||hlPipelineId);
+  var body={};
+  if(newStage==='won')body.status='won';
+  else if(newStage==='dead')body.status='lost';
+  else body.status='open';
   if(stageId)body.pipelineStageId=stageId;
   fetch(HL_BASE+'/opportunities/'+lead.hlId,{method:'PUT',headers:HL_HEADERS,body:JSON.stringify(body)})
-    .then(function(){setHLBadge('HL Synced ✓','green');})
-    .catch(function(){setHLBadge('Sync Error','orange');});
+    .then(function(r){
+      if(!r.ok)return r.text().then(function(t){throw new Error(t||String(r.status));});
+      return r.json().catch(function(){return{};});
+    })
+    .then(function(){setHLBadge('HL Synced ✓','green');fetchHLData();})
+    .catch(function(e){console.log('CHS HL update error:',e);setHLBadge('Sync Error','orange');});
 }
 
 function deleteHLOpportunity(hlId){
@@ -1129,10 +1173,13 @@ function toggleWonCol(){
 }
 
 function renderKanban(){
+  var board=document.getElementById('kanban-board');
+  if(!board)return;
   var total=leads.length;
   var deadCount=leads.filter(function(l){return l.stage==='dead';}).length;
   console.log('CHS renderKanban: '+total+' total leads, '+deadCount+' dead, deadColHidden='+deadColHidden);
-  document.getElementById('kb-total').textContent=total+' lead'+(total!==1?'s':'');
+  var kbTotal=document.getElementById('kb-total');
+  if(kbTotal)kbTotal.textContent=total+' lead'+(total!==1?'s':'');
   // Update toggle button labels
   var deadBtn=document.getElementById('dead-col-toggle');
   if(deadBtn)deadBtn.textContent=deadColHidden?'💀 Show Dead':'💀 Hide Dead';
@@ -1144,7 +1191,6 @@ function renderKanban(){
     if(col.id==='won'&&wonColHidden)return false;
     return true;
   });
-  var board=document.getElementById('kanban-board');
   var html='';
   visibleCols.forEach(function(col){
     var colLeads=leads.filter(function(l){return l.stage===col.id;});
@@ -3036,6 +3082,9 @@ function startTasksPolling(){
 document.addEventListener('visibilitychange',function(){
   if(!document.hidden&&gTasksConnected){
     fetchTasksAndFlash();
+  }
+  if(!document.hidden){
+    try{fetchHLData();}catch(e){}
   }
 });
 

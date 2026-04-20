@@ -1,0 +1,168 @@
+# Columbus Home Solutions — Command Center Dashboard
+## Claude Project Instructions
+
+---
+
+## Project Overview
+This is a single-file HTML dashboard for Columbus Home Solutions (CHS), a home remodeling business in North Little Rock, AR. The dashboard is the owner's daily command center — it tracks jobs, leads, tasks, finances, and calendar in one place.
+
+---
+
+## Live URLs & Infrastructure
+- **Live site**: https://dashboard.homesolutionsar.com
+- **GitHub repo**: https://github.com/tony791/chs-dashboard
+- **Cloudflare Worker proxy** (for Claude API calls): https://chs-claude-proxy.tony-bc5.workers.dev
+- **Deployment**: GitHub Actions auto-deploys on push to main, replacing `%%PLACEHOLDER%%` values with GitHub Secrets
+
+---
+
+## File Structure
+- **`CHS_Dashboard.html`** — entire dashboard, single file, inline JS and CSS
+- **`jobber_sync.py`** — Python script that syncs Jobber data to Google Sheets hourly via GitHub Actions
+- **`manifest.json`** — PWA manifest
+- **`sw.js`** — Service worker for PWA/offline support
+- **`SmartNotes_AutoArchive.gs`** — Google Apps Script that auto-archives Smart Notes when Status → Done
+
+---
+
+## Placeholder Variables (replaced by GitHub Actions)
+```
+%%OAUTH_CLIENT_ID%%     → Google OAuth 2.0 Client ID
+%%JOB_TRACKER_SHEET_ID%% → Google Sheets ID for Job Tracker
+%%WC_SHEET_ID%%         → Google Sheets ID for Wealthy Contractor Tracker
+%%HL_TOKEN%%            → HighLevel API Bearer token
+%%GOOGLE_API_KEY%%      → Google API key (for public sheet reads)
+```
+
+---
+
+## Tech Stack
+- **Frontend**: Single-file HTML, vanilla JS, inline CSS
+- **Auth**: Google OAuth 2.0 implicit flow (token stored in localStorage as `chs_oauth`)
+- **Google APIs**: Sheets, Tasks, Calendar, Gmail (readonly), Drive (readonly)
+- **CRM**: HighLevel (leadconnectorhq.com) API v2021-07-28
+- **Jobs**: Jobber GraphQL API
+- **AI**: Claude via Cloudflare Worker proxy (for Smart Notes processing)
+- **Weather**: Open-Meteo API (free, no key needed)
+- **Fonts**: Bebas Neue + Nunito via Google Fonts
+
+---
+
+## Google Sheets Structure
+- **Job Tracker sheet** (`JOB_TRACKER_SHEET_ID`):
+  - `Job Tracker` tab — job rows written by jobber_sync.py (rows 5+)
+  - `Dashboard` tab — KPI metrics in `B2:G2` (YTD Revenue, Monthly Revenue, Weekly Collections, YTD Profit, Monthly Profit, Job Count)
+  - `Smart Notes` tab — columns A:I (Date, Time, Category, Raw Note, AI Summary, Tags, Tasks Extracted, Task Count, Status)
+  - `Archived Notes` tab — auto-created when first note is archived
+- **WC Tracker sheet** (`WC_SHEET_ID`):
+  - `Key Business Performance Indicators` tab — weekly revenue/collections data
+
+---
+
+## HighLevel Pipeline — Exact Stage Names
+These are the REAL stage names in HighLevel (critical for mapping):
+```
+"New Lead"                     → col id: 'new'
+"Contacted | Follow Up"        → col id: 'cont'
+"Appointment Set"              → col id: 'appt'
+"Create Estimate"              → col id: 'est'
+"Estimate Sent | Follow Up"    → col id: 'estfu'
+"Job Completed | Collected"    → col id: 'won'     (hideable)
+"Job Completed | Not Collected"→ col id: 'unpaid'
+"Dead Lead"                    → col id: 'dead'    (hideable)
+```
+
+**Known Stage IDs (hardcoded fallback in `HL_STAGE_ID_MAP`):**
+```js
+'adb468b0-7c7e-42b4-9ae9-fad4af5c0ec5': 'new'   // New Lead
+'021fb348-4343-494e-a6a0-41af99b2b0ef': 'dead'   // Dead Lead
+```
+The pipeline fetch auto-populates the rest. Stage names from HL API come via `pipelineStageId` field (not `op.stage.name`).
+
+---
+
+## Layout Structure
+```
+header (full width)
+weather bar (full width)
+main (max-width: 1800px, centered, margin: 0 auto)
+  └── .mgrid (320px | 1fr | 320px, width: 100%)
+        ├── [grid-column: 1/-1] KPI strip (6 cards)
+        ├── LEFT col (320px): Quick Launch, Content Creation, Business Bills
+        ├── CENTER col (1fr, min-width:0): Business Pulse, Calendar, Smart Notes, Lead Pipeline
+        └── RIGHT col (320px): Task Manager, Meetings, Local Map
+```
+
+---
+
+## Key JavaScript Functions
+| Function | Purpose |
+|---|---|
+| `connectGoogle()` | Initiates Google OAuth implicit flow |
+| `onOAuthConnected()` | Called after successful OAuth, starts all Google syncs |
+| `fetchOAuthCalendar()` | Fetches all calendar events from all user calendars |
+| `fetchGoogleTasks()` | Fetches tasks from Google Tasks API |
+| `fetchHLData()` | Syncs leads from HighLevel pipeline |
+| `renderKanban()` | Renders lead pipeline board |
+| `processNote()` | Sends note to Claude via proxy, extracts tasks |
+| `loadNoteHistory()` | Loads Smart Notes from Google Sheets |
+| `archiveNote(sheetRow, btn)` | Moves note to Archived Notes tab |
+| `autoArchiveDoneRows(doneRows)` | Batch archives Done notes |
+| `fetchJobberMetrics()` | Reads Dashboard!B2:G2 from Job Tracker sheet |
+| `fetchSheetKPIs()` | Reads KPI values from Job Tracker sheet |
+| `refreshAll()` | Calls all fetch functions |
+| `renderCalendar()` | Renders the calendar grid |
+| `mobNav(id)` | Switches mobile section |
+| `toggleDeadCol()` | Shows/hides Dead Lead column (persisted) |
+| `toggleWonCol()` | Shows/hides Job Completed column (persisted) |
+| `mobAppLink(e, appUrl, webUrl)` | Opens native app on mobile, web URL on desktop |
+
+---
+
+## Smart Notes System
+- New notes default to status: **"Needs Processing"**
+- Status dropdown: `Needs Processing / In Progress / Done / Archived`
+- When History panel opens: auto-archives any rows with status "Done" or "Archived"
+- **Apps Script trigger** (`SmartNotes_AutoArchive.gs`): installed in Google Sheet, fires on edit — when Status col (I) → "Done", instantly moves row to Archived Notes tab and deletes from Smart Notes
+- `SN_SHEET_ID = JOB_TRACKER_SHEET_ID` (same sheet)
+
+---
+
+## Mobile / PWA
+- Bottom nav bar with 5 tabs: Overview, Tasks, Calendar, Notes, More
+- Nav buttons use class `.mnb`, IDs `mnb-home`, `mnb-tasks`, `mnb-notes`, `mnb-pipeline`, `mnb-more`
+- Section IDs: `mob-home-section`, `mob-tasks-section`, `mob-notes-section`, `mob-pipeline-section`, `mob-more-section`
+- `mobNav(id)` — the main nav function
+- Mobile breakpoint: 900px (`.mob-section{display:none}` only at ≤900px)
+- PWA installable via manifest.json + sw.js
+- Native app deep links via `mobAppLink()` helper
+
+---
+
+## Important Coding Conventions
+1. **Single file** — everything stays in `CHS_Dashboard.html`, no separate CSS/JS files
+2. **No `_orig*` override patterns** — causes infinite recursion due to JS hoisting. Always merge new logic directly into the original function
+3. **Null-safe DOM access** — always check `if(!el)return` before accessing element properties
+4. **localStorage keys in use**:
+   - `chs_oauth` — OAuth token + expiry
+   - `chs_leads_kb` — kanban leads array
+   - `chs_dead_hidden` — dead col hidden state
+   - `chs_won_hidden` — won col hidden state
+   - `chs_kb_ver` — version key to reset stale hide states
+   - `chs_mob_sec` — last active mobile section
+   - `chs_tr1`, `chs_tr2` — spreadsheet URLs
+   - `chs_trl1`, `chs_trl2` — spreadsheet lock states
+   - `chs_sub` — subcontractor sheet URL
+   - `chs_sub_locked` — sub sheet lock state
+5. **Calendar all-day events** — Google returns date-only strings like `"2026-04-07"`. Parse with string splitting, NOT `new Date("2026-04-07")` (which shifts timezone to previous day in US time zones)
+6. **Syntax checking** — always run `node --check` on the extracted script before deploying
+
+---
+
+## Business Context
+- **Owner**: Tony, North Little Rock, AR
+- **Business**: Columbus Home Solutions — home remodeling/renovation
+- **Email**: tony@homesolutionsar.com
+- **HighLevel location ID**: `lZ8L8FAf6K2niuHoFbaw`
+- **Job Tracker Apps Script URL**: `https://script.google.com/macros/s/AKfycbwSatQFSlvP8GY0XXMRjgdN8esc5IJo4T4cTj1kwBShjJ_iRLOc3fnGZ-ezfGbNx5nU/exec`
+- **WC Tracker Apps Script URL**: `https://script.google.com/macros/s/AKfycbzN2yakVRoBYdSa-F-UreDLzl8YctxvCt1vCAqPJEk8kGSIKD8ak-qkSRJwpjNCd_Gm/exec`
