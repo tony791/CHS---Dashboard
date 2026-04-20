@@ -5,7 +5,7 @@
   <meta http-equiv="cache-control" content="no-cache">
   <meta http-equiv="expires" content="0">
   <meta http-equiv="pragma" content="no-cache">
-  <!-- v20260405001 -->
+  <!-- v20260420001 mobile app shell -->
 <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="pragma" content="no-cache">
 <meta http-equiv="expires" content="0">
@@ -216,10 +216,10 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1800px;width:1
 /* ══ MOBILE BOTTOM NAV ══ */
 .mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:linear-gradient(180deg,rgba(30,5,15,.95),rgba(20,3,10,.99));border-top:1px solid rgba(240,165,0,.22);padding:6px 0 max(6px,env(safe-area-inset-bottom));backdrop-filter:blur(12px);}
 .mob-nav-inner{display:flex;justify-content:space-around;align-items:center;}
-.mnb{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:rgba(255,248,236,.45);cursor:pointer;padding:4px 10px;border-radius:10px;transition:all .2s;font-family:'Nunito',sans-serif;min-width:52px;}
+.mnb{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:rgba(255,248,236,.45);cursor:pointer;padding:4px 6px;border-radius:10px;transition:all .2s;font-family:'Nunito',sans-serif;min-width:40px;}
 .mnb.active{color:var(--gold);}
-.mnb span:first-child{font-size:20px;line-height:1;}
-.mnb span:last-child{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.mnb span:first-child{font-size:18px;line-height:1;}
+.mnb span:last-child{font-size:8px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;}
 .mnb.active span:last-child{color:var(--gold);}
 
 /* ══ MOBILE SECTIONS ══ */
@@ -290,6 +290,61 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1800px;width:1
   .kstrip{display:grid!important;}
 }
 
+/* ══ DEDICATED MOBILE APP (≤768px) — not a stacked desktop layout ══ */
+.chs-desktop-wrap{display:block;}
+#chs-mobile-shell{display:none;flex-direction:column;min-height:100vh;min-height:100dvh;padding-bottom:calc(58px + env(safe-area-inset-bottom,0px));position:relative;z-index:6;background:var(--dark);}
+body.chs-app-mobile{padding-bottom:0;}
+body.chs-app-mobile .chs-desktop-wrap{display:none!important;}
+body.chs-app-mobile #chs-mobile-shell{display:flex!important;}
+body.chs-app-mobile .mob-nav{display:flex!important;}
+.ma-topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));background:linear-gradient(135deg,var(--burg) 0%,#2A0812 100%);border-bottom:2px solid var(--gold);flex-shrink:0;gap:10px;}
+.ma-brand{display:flex;align-items:center;gap:8px;min-width:0;}
+.ma-brand .ma-logo-t{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ma-clock{text-align:right;flex-shrink:0;}
+.ma-clock #ma-clk-t{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);line-height:1;}
+.ma-clock #ma-clk-d{font-size:9px;color:var(--muted);}
+.ma-top-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;}
+.ma-top-actions .rfb{padding:6px 10px;font-size:11px;}
+.ma-panes{flex:1;min-height:0;overflow:hidden;position:relative;}
+.ma-pane{display:none;flex-direction:column;height:100%;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px 8px;gap:12px;}
+.ma-pane.ma-active{display:flex;}
+.ma-hello{font-size:15px;font-weight:800;color:var(--cream);line-height:1.35;}
+.ma-hello span{color:var(--gold);}
+.ma-kpi-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;}
+.ma-kpi-chip{flex:0 0 auto;scroll-snap-align:start;width:118px;background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:10px 11px;}
+.ma-kpi-chip .kl{font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+.ma-kpi-chip .kv{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);margin-top:2px;}
+.ma-wc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.ma-wc-cell{background:rgba(0,0,0,.28);border:1px solid rgba(240,165,0,.14);border-radius:10px;padding:10px;text-align:center;}
+.ma-wc-cell .wcl{font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.ma-wc-cell .wcv{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--green);margin-top:3px;}
+.ma-weather-row{display:flex;align-items:center;gap:12px;background:rgba(20,4,10,.75);border:1px solid rgba(240,165,0,.15);border-radius:12px;padding:10px 12px;}
+.ma-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.ma-act{background:linear-gradient(145deg,rgba(240,165,0,.18),rgba(92,21,48,.5));border:1px solid rgba(240,165,0,.35);border-radius:12px;padding:14px 8px;text-align:center;text-decoration:none;color:var(--cream);font-size:11px;font-weight:800;transition:transform .15s;}
+.ma-act:active{transform:scale(.97);}
+.ma-act .big{display:block;font-size:22px;margin-bottom:4px;}
+.ma-section-h{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);}
+#ma-agenda{display:flex;flex-direction:column;gap:0;}
+.ma-ag-day{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--gold);padding:10px 0 6px;border-bottom:1px solid rgba(255,255,255,.08);}
+.ma-ag-ev{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);}
+.ma-ag-ev .dot{width:4px;border-radius:2px;background:var(--gold);flex-shrink:0;margin-top:3px;}
+.ma-ag-ev .sum{font-weight:700;font-size:14px;color:var(--cream);}
+.ma-ag-ev .tm{font-size:11px;color:var(--muted);margin-top:2px;}
+.ma-stage-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;}
+.ma-stage-pill{flex:0 0 auto;padding:8px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;}
+.ma-stage-pill.on{background:rgba(240,165,0,.22);border-color:var(--gold);color:var(--gold);}
+.ma-lead-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;margin-bottom:8px;}
+.ma-lead-card .nm{font-weight:800;font-size:15px;color:var(--cream);}
+.ma-lead-card .meta{font-size:11px;color:var(--muted);margin-top:4px;}
+.ma-lead-card select{width:100%;margin-top:10px;background:rgba(0,0,0,.35);border:1px solid rgba(240,165,0,.25);border-radius:8px;color:var(--cream);font-size:13px;padding:8px;}
+.ma-notes-card{background:var(--card);border:1px solid var(--bdr);border-radius:14px;padding:14px;}
+#sn-input-mob{width:100%;background:rgba(0,0,0,.28);border:1px solid rgba(240,165,0,.18);border-radius:10px;color:var(--cream);font-size:14px;padding:12px;min-height:100px;resize:vertical;font-family:'Nunito',sans-serif;}
+.ma-note-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.ma-more-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ma-more-tile{background:rgba(0,0,0,.28);border:1px solid rgba(240,165,0,.16);border-radius:12px;padding:14px;text-decoration:none;color:var(--cream);font-weight:700;font-size:13px;text-align:center;}
+#task-form.ma-floating{position:fixed;left:10px;right:10px;bottom:calc(58px + env(safe-area-inset-bottom,0px));z-index:650;max-height:55vh;overflow-y:auto;box-shadow:0 -12px 40px rgba(0,0,0,.65);border:1px solid var(--gold);border-radius:14px;background:var(--burg);padding:14px!important;display:none;}
+#task-form.ma-floating.open{display:flex!important;}
+
 @media(max-width:480px){
   .kstrip{grid-template-columns:repeat(2,1fr);}
   .bn{font-size:15px;}
@@ -298,9 +353,10 @@ main{position:relative;z-index:1;padding:14px 18px 20px;max-width:1800px;width:1
 </style>
 </head>
 <body>
+<div class="chs-desktop-wrap">
 <!-- Instant clock — runs before rest of page loads -->
 <script>
-function tick(){var n=new Date();var ct=document.getElementById('clk-t');var cd=document.getElementById('clk-d');if(ct)ct.textContent=n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});if(cd)cd.textContent=n.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});}
+function tick(){var n=new Date();var ct=document.getElementById('clk-t');var cd=document.getElementById('clk-d');if(ct)ct.textContent=n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});if(cd)cd.textContent=n.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});var mt=document.getElementById('ma-clk-t'),md=document.getElementById('ma-clk-d');if(mt)mt.textContent=n.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});if(md)md.textContent=n.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});}
 setInterval(tick,1000);
 document.addEventListener('DOMContentLoaded',function(){tick();});
 </script>
@@ -627,40 +683,18 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
         </div>
         <div class="cb" style="display:flex;flex-direction:column;">
           <div class="tbar">
-            <button class="tfbtn on" onclick="setFilter('all',this)">All</button>
-            <button class="tfbtn" onclick="setFilter('today',this)">Today</button>
-            <button class="tfbtn" onclick="setFilter('overdue',this)">Overdue</button>
-            <button class="tfbtn" onclick="setFilter('high',this)">🔴 High</button>
-            <button class="tfbtn" onclick="setFilter('pending',this)">Pending</button>
-            <button class="tfbtn" onclick="setFilter('done',this)">Done</button>
+            <button type="button" class="tfbtn on" data-f="all" onclick="setFilter('all')">All</button>
+            <button type="button" class="tfbtn" data-f="today" onclick="setFilter('today')">Today</button>
+            <button type="button" class="tfbtn" data-f="overdue" onclick="setFilter('overdue')">Overdue</button>
+            <button type="button" class="tfbtn" data-f="high" onclick="setFilter('high')">🔴 High</button>
+            <button type="button" class="tfbtn" data-f="pending" onclick="setFilter('pending')">Pending</button>
+            <button type="button" class="tfbtn" data-f="done" onclick="setFilter('done')">Done</button>
           </div>
           <div class="tarow">
             <input class="tinp" id="tq-inp" placeholder="Quick add... press Enter or +" onkeydown="if(event.key==='Enter')openTaskForm()">
             <button class="tapb" onclick="openTaskForm()">+</button>
           </div>
-          <div class="tform" id="task-form">
-            <div><div class="tfl">Task Title</div><input class="tfi" id="tf-title" placeholder="Task description..."></div>
-            <div class="tfrow">
-              <div><div class="tfl">Due Date</div><input class="tfi" type="date" id="tf-due"></div>
-              <div><div class="tfl">Due Time</div><input class="tfi" type="time" id="tf-time"></div>
-            </div>
-            <div class="tfrow">
-              <div><div class="tfl">Priority</div>
-                <select class="tfs" id="tf-pri"><option value="">— None</option><option value="high">🔴 High</option><option value="med">🟠 Medium</option><option value="low">🟢 Low</option></select>
-              </div>
-              <div><div class="tfl">Category</div>
-                <select class="tfs" id="tf-cat"><option value="">— None</option><option>Job</option><option>Admin</option><option>Follow Up</option><option>Finance</option><option>Personal</option><option>Marketing</option></select>
-              </div>
-            </div>
-            <div><div class="tfl">Notes / Description</div><textarea class="tfi" id="tf-notes" placeholder="Optional notes..." style="resize:vertical;min-height:52px;font-family:'Nunito',sans-serif;"></textarea></div>
-            <input type="hidden" id="tf-gtasks-id" value="">
-            <input type="hidden" id="tf-gtasks-list" value="@default">
-            <div style="font-size:9px;color:var(--muted);display:flex;align-items:center;gap:5px;padding:4px 0 2px;" id="sync-note">
-              <span style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.2);display:inline-block;"></span>
-              Google Tasks sync will activate after OAuth setup
-            </div>
-            <div class="tfact"><button class="tfcanc" onclick="closeTaskForm()">Cancel</button><button class="tfsave" onclick="saveTask()">Save Task</button></div>
-          </div>
+          <div id="task-form-anchor"></div>
           <div style="height:320px;overflow-y:auto;padding-right:2px;">
             <div id="task-list" style="display:flex;flex-direction:column;gap:6px;"></div>
           </div>
@@ -704,6 +738,149 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     </div>
   </div>
 </main>
+</div><!-- end chs-desktop-wrap -->
+
+<!-- Task form: moved between desktop anchor & mobile anchor by relocateTaskForm() -->
+<div class="tform ma-floating" id="task-form">
+  <div><div class="tfl">Task Title</div><input class="tfi" id="tf-title" placeholder="Task description..."></div>
+  <div class="tfrow">
+    <div><div class="tfl">Due Date</div><input class="tfi" type="date" id="tf-due"></div>
+    <div><div class="tfl">Due Time</div><input class="tfi" type="time" id="tf-time"></div>
+  </div>
+  <div class="tfrow">
+    <div><div class="tfl">Priority</div>
+      <select class="tfs" id="tf-pri"><option value="">— None</option><option value="high">🔴 High</option><option value="med">🟠 Medium</option><option value="low">🟢 Low</option></select>
+    </div>
+    <div><div class="tfl">Category</div>
+      <select class="tfs" id="tf-cat"><option value="">— None</option><option>Job</option><option>Admin</option><option>Follow Up</option><option>Finance</option><option>Personal</option><option>Marketing</option></select>
+    </div>
+  </div>
+  <div><div class="tfl">Notes / Description</div><textarea class="tfi" id="tf-notes" placeholder="Optional notes..." style="resize:vertical;min-height:52px;font-family:'Nunito',sans-serif;"></textarea></div>
+  <input type="hidden" id="tf-gtasks-id" value="">
+  <input type="hidden" id="tf-gtasks-list" value="@default">
+  <div style="font-size:9px;color:var(--muted);display:flex;align-items:center;gap:5px;padding:4px 0 2px;" id="sync-note">
+    <span style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.2);display:inline-block;"></span>
+    Google Tasks sync will activate after OAuth setup
+  </div>
+  <div class="tfact"><button class="tfcanc" onclick="closeTaskForm()">Cancel</button><button class="tfsave" onclick="saveTask()">Save Task</button></div>
+</div>
+
+<!-- Dedicated mobile app shell (≤768px) -->
+<div id="chs-mobile-shell">
+  <header class="ma-topbar">
+    <div class="ma-brand">
+      <span style="font-size:26px;line-height:1;">🏠</span>
+      <div class="ma-logo-t">CHS Command</div>
+    </div>
+    <div class="ma-clock"><div id="ma-clk-t">--:--</div><div id="ma-clk-d">—</div></div>
+    <div class="ma-top-actions">
+      <button id="oauth-connect-btn-ma" onclick="connectGoogle()" style="background:rgba(66,133,244,.15);border:1px solid rgba(66,133,244,.4);color:#6ab0f5;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:700;font-size:11px;">Google</button>
+      <button class="rfb" onclick="refreshAll()">⟳</button>
+    </div>
+  </header>
+  <div class="ma-panes">
+    <div id="ma-pane-home" class="ma-pane ma-active">
+      <div class="ma-hello" id="ma-greeting">Good day — <span>let's build.</span></div>
+      <div class="ma-kpi-scroll" id="ma-kpi-strip">
+        <div class="ma-kpi-chip"><div class="kl">Jobs active</div><div class="kv" id="ma-kv-ji">—</div></div>
+        <div class="ma-kpi-chip"><div class="kl">Rev. this week</div><div class="kv" id="ma-kv-wr">—</div></div>
+        <div class="ma-kpi-chip"><div class="kl">Unpaid inv.</div><div class="kv" id="ma-kv-ui">—</div></div>
+        <div class="ma-kpi-chip"><div class="kl">Pymt sched.</div><div class="kv" id="ma-kv-ps">—</div></div>
+        <div class="ma-kpi-chip"><div class="kl">Monthly rev.</div><div class="kv" id="ma-kv-mp">—</div></div>
+        <div class="ma-kpi-chip"><div class="kl">YTD revenue</div><div class="kv" id="ma-kv-ol">—</div></div>
+      </div>
+      <div class="ma-section-h">Business pulse</div>
+      <div class="ma-wc-grid">
+        <div class="ma-wc-cell"><div class="wcl">Mo income</div><div class="wcv" id="ma-wc-mo-income">—</div></div>
+        <div class="ma-wc-cell"><div class="wcl">YTD income</div><div class="wcv" id="ma-wc-ytd-income">—</div></div>
+        <div class="ma-wc-cell"><div class="wcl">Mo profit</div><div class="wcv" id="ma-wc-mo-profit">—</div></div>
+        <div class="ma-wc-cell"><div class="wcl">YTD profit</div><div class="wcv" id="ma-wc-ytd-profit">—</div></div>
+      </div>
+      <div class="ma-weather-row">
+        <span id="ma-w-ico" style="font-size:28px;">⏳</span>
+        <div><div id="ma-w-tmp" style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold);">--°</div><div id="ma-w-dsc" style="font-size:12px;font-weight:700;color:var(--cream);">Weather</div><div id="ma-w-fl" style="font-size:10px;color:var(--muted);">—</div></div>
+      </div>
+      <div class="ma-section-h">Open fast</div>
+      <div class="ma-actions">
+        <a class="ma-act" href="jobber://home" onclick="return mobAppLink(event,'jobber://home','https://secure.getjobber.com/home')"><span class="big">🏗️</span>Jobber</a>
+        <a class="ma-act" href="https://app.redmondgrowth.com/v2/location/lZ8L8FAf6K2niuHoFbaw/opportunities/list" target="_blank"><span class="big">⚡</span>HighLevel</a>
+        <a class="ma-act" href="googlegmail://" onclick="return mobAppLink(event,'googlegmail://','https://mail.google.com')"><span class="big">📧</span>Gmail</a>
+      </div>
+    </div>
+    <div id="ma-pane-tasks" class="ma-pane">
+      <div class="ma-section-h">Tasks</div>
+      <span id="tasks-sync-badge-ma" style="font-size:10px;font-weight:700;color:var(--muted);">Google Tasks: …</span>
+      <div class="tbar">
+        <button type="button" class="tfbtn on" data-f="all" onclick="setFilter('all')">All</button>
+        <button type="button" class="tfbtn" data-f="today" onclick="setFilter('today')">Today</button>
+        <button type="button" class="tfbtn" data-f="overdue" onclick="setFilter('overdue')">Overdue</button>
+        <button type="button" class="tfbtn" data-f="high" onclick="setFilter('high')">🔴</button>
+        <button type="button" class="tfbtn" data-f="pending" onclick="setFilter('pending')">Pending</button>
+        <button type="button" class="tfbtn" data-f="done" onclick="setFilter('done')">Done</button>
+      </div>
+      <div class="tarow">
+        <input class="tinp" id="tq-inp-ma" placeholder="Quick add…" onkeydown="if(event.key==='Enter')openTaskForm()">
+        <button class="tapb" onclick="openTaskForm()">+</button>
+      </div>
+      <div id="ma-task-form-anchor"></div>
+      <div id="mob-task-list" style="display:flex;flex-direction:column;gap:8px;flex:1;min-height:120px;"></div>
+      <div class="tstat" id="task-stats-ma" style="margin-top:auto;"></div>
+    </div>
+    <div id="ma-pane-calendar" class="ma-pane">
+      <div class="ma-section-h">Upcoming</div>
+      <div id="ma-agenda"></div>
+      <a href="https://calendar.google.com" target="_blank" class="bdg" style="align-self:flex-start;">Full Google Calendar ↗</a>
+    </div>
+    <div id="ma-pane-notes" class="ma-pane">
+      <div class="ma-notes-card">
+        <div class="ma-section-h" style="margin-bottom:10px;">Smart notes</div>
+        <textarea id="sn-input-mob" placeholder="Capture a thought…"></textarea>
+        <select id="sn-cat-mob" style="width:100%;margin-top:8px;background:rgba(0,0,0,.3);border:1px solid rgba(240,165,0,.2);border-radius:8px;color:var(--cream);font-size:12px;padding:8px;">
+          <option value="">— Category</option>
+          <option>Job</option><option>Admin</option><option>Finance</option>
+          <option>Follow Up</option><option>Marketing</option><option>Personal</option><option>Meeting</option>
+        </select>
+        <div class="ma-note-actions">
+          <button onclick="mobProcessNote()" style="flex:1;background:linear-gradient(135deg,var(--gold),var(--orange-lt));border:none;border-radius:9px;color:var(--dark);font-weight:800;padding:11px;font-size:13px;cursor:pointer;">✨ Process</button>
+          <button onclick="loadMobNoteHistory()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:9px;color:var(--cream);padding:11px 14px;font-weight:700;cursor:pointer;">📋 History</button>
+        </div>
+        <div id="sn-mob-status" style="display:none;font-size:12px;color:var(--gold);margin-top:6px;"></div>
+        <div id="sn-history-list-mob" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;max-height:280px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <div id="ma-pane-pipeline" class="ma-pane">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div class="ma-section-h" style="margin:0;">Leads</div>
+        <span class="bdg" onclick="openMod('lead-mod')" style="cursor:pointer;">+ Add</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);" id="ma-hl-sync">HighLevel…</div>
+      <div class="ma-stage-scroll" id="ma-stage-pills"></div>
+      <div id="ma-lead-list"></div>
+    </div>
+    <div id="ma-pane-more" class="ma-pane">
+      <div class="ma-section-h">Shortcuts</div>
+      <div class="ma-more-grid">
+        <a class="ma-more-tile" href="googlecalendar://" onclick="return mobAppLink(event,'googlecalendar://','https://calendar.google.com')">📅 Calendar</a>
+        <a class="ma-more-tile" href="https://tasks.google.com" target="_blank">✅ Tasks web</a>
+        <a class="ma-more-tile" href="https://drive.google.com" target="_blank">📁 Drive</a>
+        <a class="ma-more-tile" href="https://www.google.com/maps/search/@34.7695,-92.2671,13z" target="_blank">🗺️ Maps</a>
+      </div>
+      <div class="ma-section-h" style="margin-top:8px;">Trackers</div>
+      <a class="ma-more-tile" id="ma-tr1" href="#" target="_blank" style="grid-column:1/-1;">📋 Job cost tracker</a>
+      <a class="ma-more-tile" id="ma-tr2" href="#" target="_blank" style="grid-column:1/-1;">💰 WC tracker</a>
+    </div>
+  </div>
+  <nav class="mob-nav" id="mob-nav">
+    <div class="mob-nav-inner">
+      <button class="mnb active" id="mnb-home" onclick="mobNav('home')"><span>🏠</span><span>Today</span></button>
+      <button class="mnb" id="mnb-tasks" onclick="mobNav('tasks')"><span>✅</span><span>Tasks</span></button>
+      <button class="mnb" id="mnb-calendar" onclick="mobNav('calendar')"><span>📅</span><span>Agenda</span></button>
+      <button class="mnb" id="mnb-notes" onclick="mobNav('notes')"><span>🧠</span><span>Notes</span></button>
+      <button class="mnb" id="mnb-pipeline" onclick="mobNav('pipeline')"><span>🎯</span><span>Leads</span></button>
+      <button class="mnb" id="mnb-more" onclick="mobNav('more')"><span>☰</span><span>More</span></button>
+    </div>
+  </nav>
+</div>
 
 <!-- ADD LEAD MODAL -->
 <div class="mov" id="lead-mod">
@@ -730,17 +907,6 @@ document.addEventListener('DOMContentLoaded',function(){tick();});
     <div class="mact"><button class="bcn" onclick="closeMod('kpi-mod')">Cancel</button><button class="bpr" onclick="saveKpi()">Update</button></div>
   </div>
 </div>
-
-<!-- MOBILE BOTTOM NAV -->
-<nav class="mob-nav" id="mob-nav">
-  <div class="mob-nav-inner">
-    <button class="mnb active" id="mnb-home" onclick="mobNav('home')"><span>📊</span><span>Home</span></button>
-    <button class="mnb" id="mnb-tasks" onclick="mobNav('tasks')"><span>✅</span><span>Tasks</span></button>
-    <button class="mnb" id="mnb-notes" onclick="mobNav('notes')"><span>🧠</span><span>Notes</span></button>
-    <button class="mnb" id="mnb-pipeline" onclick="mobNav('pipeline')"><span>🎯</span><span>Pipeline</span></button>
-    <button class="mnb" id="mnb-more" onclick="mobNav('more')"><span>☰</span><span>More</span></button>
-  </div>
-</nav>
 
 <script>
 var OAUTH_CLIENT_ID='%%OAUTH_CLIENT_ID%%';
@@ -845,14 +1011,20 @@ var WD={0:'Clear Sky',1:'Mainly Clear',2:'Partly Cloudy',3:'Overcast',45:'Foggy'
 var NLR_LAT=34.7695,NLR_LON=-92.2671;
 
 function applyWeather(w){
-  document.getElementById('w-ico').textContent=WI[w.code]||'🌡️';
-  document.getElementById('w-tmp').textContent=w.temp+'°F';
-  document.getElementById('w-dsc').textContent=WD[w.code]||'Current conditions';
-  document.getElementById('w-fl').textContent='Feels like '+w.feel+'°F';
-  document.getElementById('w-hm').textContent=w.hum+'%';
-  document.getElementById('w-wn').textContent=w.wind;
-  document.getElementById('w-hi').textContent=w.hi+'°F';
-  document.getElementById('w-lo').textContent=w.lo+'°F';
+  var ico=WI[w.code]||'🌡️',tmp=w.temp+'°F',dsc=WD[w.code]||'Current conditions',fl='Feels like '+w.feel+'°F';
+  var el=function(id){return document.getElementById(id);};
+  if(el('w-ico'))el('w-ico').textContent=ico;
+  if(el('w-tmp'))el('w-tmp').textContent=tmp;
+  if(el('w-dsc'))el('w-dsc').textContent=dsc;
+  if(el('w-fl'))el('w-fl').textContent=fl;
+  if(el('w-hm'))el('w-hm').textContent=w.hum+'%';
+  if(el('w-wn'))el('w-wn').textContent=w.wind;
+  if(el('w-hi'))el('w-hi').textContent=w.hi+'°F';
+  if(el('w-lo'))el('w-lo').textContent=w.lo+'°F';
+  if(el('ma-w-ico'))el('ma-w-ico').textContent=ico;
+  if(el('ma-w-tmp'))el('ma-w-tmp').textContent=tmp;
+  if(el('ma-w-dsc'))el('ma-w-dsc').textContent=dsc;
+  if(el('ma-w-fl'))el('ma-w-fl').textContent=fl;
 }
 
 // Show cached weather instantly if available
@@ -955,13 +1127,16 @@ function setHLBadge(status,color){
   var dot=document.getElementById('hl-sync-dot');
   var txt=document.getElementById('hl-sync-txt');
   var badge=document.getElementById('hl-sync-badge');
-  if(!dot||!txt||!badge)return;
-  dot.style.background=color==='green'?'var(--green)':color==='orange'?'var(--orange-lt)':'rgba(255,255,255,.25)';
-  dot.style.animation=color==='green'?'pulse 2s infinite':'none';
-  txt.textContent=status;
-  badge.style.background=color==='green'?'rgba(82,192,122,.12)':color==='orange'?'rgba(232,114,42,.12)':'rgba(255,255,255,.06)';
-  badge.style.color=color==='green'?'var(--green)':color==='orange'?'var(--orange-lt)':'var(--muted)';
-  badge.style.borderColor=color==='green'?'rgba(82,192,122,.3)':color==='orange'?'rgba(232,114,42,.3)':'rgba(255,255,255,.12)';
+  if(dot&&txt&&badge){
+    dot.style.background=color==='green'?'var(--green)':color==='orange'?'var(--orange-lt)':'rgba(255,255,255,.25)';
+    dot.style.animation=color==='green'?'pulse 2s infinite':'none';
+    txt.textContent=status;
+    badge.style.background=color==='green'?'rgba(82,192,122,.12)':color==='orange'?'rgba(232,114,42,.12)':'rgba(255,255,255,.06)';
+    badge.style.color=color==='green'?'var(--green)':color==='orange'?'var(--orange-lt)':'var(--muted)';
+    badge.style.borderColor=color==='green'?'rgba(82,192,122,.3)':color==='orange'?'rgba(232,114,42,.3)':'rgba(255,255,255,.12)';
+  }
+  var ma=document.getElementById('ma-hl-sync');
+  if(ma){ma.textContent=status;ma.style.color=color==='green'?'var(--green)':color==='orange'?'var(--orange-lt)':'var(--muted)';}
 }
 
 // Hardcoded stage ID → column map (from your HighLevel pipeline)
@@ -1233,6 +1408,7 @@ function renderKanban(){
   board.querySelectorAll('.kb-add').forEach(function(btn){
     btn.addEventListener('click',function(){quickAddLead(btn.getAttribute('data-add'));});
   });
+  if(typeof renderMobileLeads==='function'&&(typeof isAppMobile==='function'&&isAppMobile()))renderMobileLeads();
 }
 
 function dragStart(e,id){dragId=id;setTimeout(function(){var el=document.querySelector('[data-id="'+id+'"]');if(el)el.classList.add('dragging');},0);}
@@ -1390,16 +1566,20 @@ function addSubtask(parentIdx){
 function updateSyncBadge(){
   var badge=document.getElementById('tasks-sync-badge');
   var note=document.getElementById('sync-note');
+  var badgeMa=document.getElementById('tasks-sync-badge-ma');
   if(gTasksConnected){
-    badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;"></span>Google Tasks: Synced';
-    badge.style.background='rgba(82,192,122,.15)';
-    badge.style.color='var(--green)';
-    badge.style.borderColor='rgba(82,192,122,.3)';
+    var inner='<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;"></span>Google Tasks: Synced';
+    if(badge){badge.innerHTML=inner;badge.style.background='rgba(82,192,122,.15)';badge.style.color='var(--green)';badge.style.borderColor='rgba(82,192,122,.3)';}
+    if(badgeMa){badgeMa.textContent='Google Tasks: Synced ✓';badgeMa.style.color='var(--green)';}
     if(note)note.innerHTML='<span style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;"></span> Tasks sync active — new tasks will appear in Google Tasks';
   }
 }
 
-function setFilter(f,btn){tFilter=f;document.querySelectorAll('.tfbtn').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');renderTasks();}
+function setFilter(f){
+  tFilter=f;
+  document.querySelectorAll('.tfbtn[data-f]').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-f')===f);});
+  renderTasks();
+}
 function getFiltered(){var today=new Date().toISOString().split('T')[0];return tasks.filter(function(t){if(tFilter==='all')return true;if(tFilter==='done')return t.done;if(tFilter==='pending')return!t.done;if(tFilter==='high')return!t.done&&t.pri==='high';if(tFilter==='today')return!t.done&&t.due===today;if(tFilter==='overdue')return!t.done&&t.due&&t.due<today;return true;});}
 function fmtDate(d){var p=d.split('-'),mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return mo[parseInt(p[1])-1]+' '+parseInt(p[2]);}
 function getDue(due,time){
@@ -1417,7 +1597,13 @@ function priLbl(p){return p==='high'?'🔴 High':p==='med'?'🟠 Medium':p==='lo
 function renderTasks(){
   var list=document.getElementById('task-list'),filtered=getFiltered();
   filtered=filtered.filter(function(t){return !t.done;});
-  if(!filtered.length){list.innerHTML='<div class="empty">No tasks'+(tFilter!=='all'?' matching this filter':'')+'</div>';renderStats();return;}
+  if(!filtered.length){
+    if(list)list.innerHTML='<div class="empty">No tasks'+(tFilter!=='all'?' matching this filter':'')+'</div>';
+    renderStats();
+    if(typeof renderMobTasks==='function'&&(typeof isAppMobile==='function'&&isAppMobile()))renderMobTasks();
+    return;
+  }
+  if(!list){renderStats();if(typeof renderMobTasks==='function'&&(typeof isAppMobile==='function'&&isAppMobile()))renderMobTasks();return;}
 
   // Build parent→children lookup — uses gTasksId OR local _parentLid
   var childrenOf={};
@@ -1487,6 +1673,7 @@ function renderTasks(){
 
   list.innerHTML=html;
   renderStats();
+  if(typeof renderMobTasks==='function'&&(typeof isAppMobile==='function'&&isAppMobile()))renderMobTasks();
 }
 
 var expandedTasks={};
@@ -1499,24 +1686,40 @@ function renderStats(){
   var done=tasks.filter(function(t){return t.done;}).length;
   var ov=tasks.filter(function(t){return!t.done&&t.due&&t.due<today;}).length;
   var dt=tasks.filter(function(t){return!t.done&&t.due===today;}).length;
-  document.getElementById('task-stats').innerHTML=
-    '<span>📋 '+tasks.length+' total</span>'+
+  var html='<span>📋 '+tasks.length+' total</span>'+
     '<span>✅ '+done+' done</span>'+
     (dt?'<span style="color:var(--orange-lt)">⏰ '+dt+' today</span>':'')+
     (ov?'<span style="color:var(--red)">🚨 '+ov+' overdue</span>':'')+
     (gTasksConnected?'<span style="color:var(--green);margin-left:auto;">🔄 Synced</span>':'');
+  var ts=document.getElementById('task-stats');
+  if(ts)ts.innerHTML=html;
+  var tsm=document.getElementById('task-stats-ma');
+  if(tsm)tsm.innerHTML=html;
 }
 
+function relocateTaskForm(){
+  var f=document.getElementById('task-form');
+  var desk=document.getElementById('task-form-anchor');
+  var mob=document.getElementById('ma-task-form-anchor');
+  if(!f)return;
+  var target=(typeof isAppMobile==='function'&&isAppMobile()&&mob)?mob:desk;
+  if(target&&f.parentNode!==target)target.appendChild(f);
+  if(typeof isAppMobile==='function'&&isAppMobile())f.classList.add('ma-floating');else f.classList.remove('ma-floating');
+}
 function openTaskForm(){
-  var qv=document.getElementById('tq-inp').value.trim();
+  relocateTaskForm();
+  var q1=document.getElementById('tq-inp'),q2=document.getElementById('tq-inp-ma');
+  var qv=(q1&&q1.value.trim())||(q2&&q2.value.trim())||'';
   var form=document.getElementById('task-form');
-  if(qv){document.getElementById('tf-title').value=qv;document.getElementById('tq-inp').value='';}
+  if(qv){document.getElementById('tf-title').value=qv;if(q1)q1.value='';if(q2)q2.value='';}
   form.classList.toggle('open');
   if(form.classList.contains('open'))document.getElementById('tf-title').focus();
 }
 function closeTaskForm(){
   document.getElementById('task-form').classList.remove('open');
-  document.getElementById('tq-inp').value='';
+  var q1=document.getElementById('tq-inp'),q2=document.getElementById('tq-inp-ma');
+  if(q1)q1.value='';
+  if(q2)q2.value='';
   document.getElementById('tf-gtasks-id').value='';
 }
 
@@ -1569,6 +1772,7 @@ function updTr(n,url){
   if(lnk)lnk.href=url||'#';
   if(qlLnk)qlLnk.href=url||'#';
   localStorage.setItem('chs_tr'+n,url);
+  if(typeof syncMaTrackers==='function')syncMaTrackers();
 }
 function togLock(n){
   var inp=document.getElementById('tr'+n+'-url');
@@ -2516,10 +2720,8 @@ function onOAuthConnected(){
   // Reload note history so Done buttons appear with new OAuth token
   if(snHistoryVisible)loadNoteHistory();
   // Update mobile OAuth button and task badge
-  var mobBtn=document.getElementById('oauth-connect-btn-mob');
-  if(mobBtn){mobBtn.textContent='✓ Google Connected';mobBtn.style.background='rgba(82,192,122,.2)';mobBtn.style.color='var(--green)';mobBtn.style.borderColor='rgba(82,192,122,.35)';}
-  var mobTaskBadge=document.getElementById('tasks-sync-badge-mob');
-  if(mobTaskBadge){mobTaskBadge.textContent='Synced';mobTaskBadge.style.color='var(--green)';}
+  var mobBtnMa=document.getElementById('oauth-connect-btn-ma');
+  if(mobBtnMa){mobBtnMa.textContent='✓ Connected';mobBtnMa.style.background='rgba(82,192,122,.2)';mobBtnMa.style.color='var(--green)';mobBtnMa.style.borderColor='rgba(82,192,122,.35)';mobBtnMa.onclick=function(){if(confirm('Disconnect Google account?')){clearToken();location.reload();}};}
 }
 
 // Initialise on load
@@ -2804,7 +3006,10 @@ function renderCalendar(){
   var grid=document.getElementById('cal-grid');
   var dowRow=document.getElementById('cal-dow-row');
   var label=document.getElementById('cal-view-label');
-  if(!grid||!label)return;
+  if(!grid||!label){
+    if(typeof renderMobileAgenda==='function'&&(typeof isAppMobile==='function'&&isAppMobile()))renderMobileAgenda();
+    return;
+  }
   dowRow.innerHTML=DOWS.map(function(d){return'<div style="text-align:center;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:3px 0;">'+d+'</div>';}).join('');
 
   if(calMode==='schedule'){
@@ -2828,6 +3033,7 @@ function renderCalendar(){
     }).sort(function(a,b){return new Date(a._startDate)-new Date(b._startDate)}).slice(0,30);
     if(!upcoming.length){
       grid.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">No upcoming events</div>';
+      if(typeof renderMobileAgenda==='function'&&(typeof isAppMobile==='function'&&isAppMobile()))renderMobileAgenda();
       return;
     }
     // Group by date
@@ -2864,6 +3070,7 @@ function renderCalendar(){
         }).join('')
         +'</div>';
     }).join('');
+    if(typeof renderMobileAgenda==='function'&&(typeof isAppMobile==='function'&&isAppMobile()))renderMobileAgenda();
     return;
   }
   if(calMode==='week'){
@@ -2902,6 +3109,7 @@ function renderCalendar(){
     var rem=(fd+dim)%7;if(rem)for(var d=1;d<=7-rem;d++)cells+=buildMCell(new Date(yr,mo+1,d),true,today);
     grid.innerHTML=cells;
   }
+  if(typeof renderMobileAgenda==='function'&&(typeof isAppMobile==='function'&&isAppMobile()))renderMobileAgenda();
 }
 
 function buildMCell(date,other,today){
@@ -2975,6 +3183,7 @@ function fetchOAuthCalendar(){
         return true;
       });
       renderCalendar();
+      if(typeof renderMobileAgenda==='function'&&(typeof isAppMobile==='function'&&isAppMobile()))renderMobileAgenda();
     })
     .catch(function(e){console.log('Calendar error:',e);});
 }
@@ -3095,53 +3304,150 @@ function reAuthGoogle(){
 
 // ── MOBILE NAVIGATION ────────────────────────────────────────
 function isMobile(){return window.innerWidth<=900;}
+function isAppMobile(){return window.innerWidth<=768;}
 
-// Map nav IDs to section element IDs
-var MOB_SEC_MAP={
-  'home':    'mob-home-section',
-  'tasks':   'mob-tasks-section',
-  'notes':   'mob-notes-section',
-  'pipeline':'mob-pipeline-section',
-  'more':    'mob-more-section'
-};
+var _maLeadStage='new';
 
-function mobNav(id){
-  // Update nav button active state
-  document.querySelectorAll('.mnb').forEach(function(b){
-    b.classList.toggle('active', b.id==='mnb-'+id);
-  });
-  // Show only the selected section
-  document.querySelectorAll('.mob-section').forEach(function(s){
-    s.classList.remove('mob-active');
-  });
-  var secId=MOB_SEC_MAP[id];
-  if(secId){
-    var sec=document.getElementById(secId);
-    if(sec)sec.classList.add('mob-active');
+function applyMobileAppMode(){
+  document.body.classList.toggle('chs-app-mobile',isAppMobile());
+  if(typeof relocateTaskForm==='function')relocateTaskForm();
+  if(isAppMobile()){
+    updateMaGreeting();
+    syncMobKPIs();
+    renderMobTasks();
+    renderMobileAgenda();
+    renderMobileLeads();
+    syncMaTrackers();
   }
-  // Trigger renders
-  try{
-    if(id==='home')syncMobKPIs();
-    if(id==='tasks')renderMobTasks();
-    if(id==='pipeline')renderMobKanban();
-  }catch(e){}
-  localStorage.setItem('chs_mob_sec',id);
 }
-
-// Alias used elsewhere in the code
-function showMobSection(id){mobNav(id);}
-function initMobile(){
-  if(!isMobile())return;
-  var sec=localStorage.getItem('chs_mob_sec')||'home';
-  mobNav(sec);
-}
+window.addEventListener('resize',function(){applyMobileAppMode();});
 document.addEventListener('DOMContentLoaded',function(){
-  if(isMobile()){
+  applyMobileAppMode();
+  if(isAppMobile()){
     var sec=new URLSearchParams(window.location.search).get('section')||localStorage.getItem('chs_mob_sec')||'home';
     setTimeout(function(){mobNav(sec);},200);
   }
 });
 
+function updateMaGreeting(){
+  var el=document.getElementById('ma-greeting');
+  if(!el)return;
+  var h=new Date().getHours();
+  var g=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+  el.innerHTML=g+', Tony — <span>Here\'s your day.</span>';
+}
+
+function renderMobileAgenda(){
+  var host=document.getElementById('ma-agenda');
+  if(!host)return;
+  if(!calAllEvents||!calAllEvents.length){host.innerHTML='<div class="empty" style="padding:20px;">Connect Google to see your calendar</div>';return;}
+  var now=new Date();now.setHours(0,0,0,0);
+  var upcoming=calAllEvents.filter(function(e){
+    if(!e._startDate)return false;
+    var evDate;
+    if(e.allDay){var p=e._startDate.substring(0,10).split('-');evDate=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
+    else evDate=new Date(e._startDate);
+    return evDate>=now;
+  }).sort(function(a,b){return new Date(a._startDate)-new Date(b._startDate)}).slice(0,40);
+  if(!upcoming.length){host.innerHTML='<div class="empty" style="padding:20px;">No upcoming events</div>';return;}
+  var grouped={};
+  upcoming.forEach(function(e,idx){
+    var d;
+    if(e.allDay){var p=e._startDate.substring(0,10).split('-');d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
+    else d=new Date(e._startDate);
+    var key=d.toDateString();
+    if(!grouped[key])grouped[key]={date:d,events:[]};
+    grouped[key].events.push({e:e,idx:idx});
+  });
+  host.innerHTML=Object.keys(grouped).map(function(key){
+    var group=grouped[key],d=group.date;
+    var isToday=d.toDateString()===now.toDateString();
+    var isTomorrow=d.toDateString()===new Date(now.getTime()+86400000).toDateString();
+    var dayLabel=isToday?'Today':isTomorrow?'Tomorrow':d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    return'<div class="ma-ag-day">'+(isToday?'● ':'')+dayLabel+'</div>'+
+      group.events.map(function(o){
+        var e=o.e,c=EV_COLORS[o.idx%EV_COLORS.length];
+        return'<div class="ma-ag-ev"><div class="dot" style="background:'+c+'"></div><div style="min-width:0;"><div class="sum">'+maEsc(e.summary||'(No title)')+'</div><div class="tm">'+fmtEvTime(e)+(e.hangoutLink?' · <a href=\"'+e.hangoutLink+'\" target=\"_blank\" style=\"color:var(--green);font-weight:700;text-decoration:none;\">Join</a>':'')+'</div></div></div>';
+      }).join('');
+  }).join('');
+}
+
+function maEsc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\"/g,'&quot;');
+}
+
+function renderMobileLeads(){
+  var pills=document.getElementById('ma-stage-pills');
+  var list=document.getElementById('ma-lead-list');
+  if(!pills||!list)return;
+  var vis=COLS.filter(function(c){
+    if(c.id==='dead'&&deadColHidden)return false;
+    if(c.id==='won'&&wonColHidden)return false;
+    return true;
+  });
+  if(!vis.some(function(c){return c.id===_maLeadStage}))_maLeadStage=vis[0]?vis[0].id:'new';
+  pills.innerHTML=vis.map(function(c){
+    return'<button type="button" class="ma-stage-pill'+(_maLeadStage===c.id?' on':'')+'" onclick="maPickStage(\''+c.id+'\')">'+c.icon+' '+c.label+'</button>';
+  }).join('');
+  var inStage=leads.filter(function(l){return l.stage===_maLeadStage;});
+  if(!inStage.length){list.innerHTML='<div class="empty" style="padding:16px;">No leads in this stage</div>';return;}
+  list.innerHTML=inStage.map(function(l){
+    var lid=JSON.stringify(l.id);
+    return'<div class="ma-lead-card"><div class="nm">'+maEsc(l.name)+(l.hlId?' <span style="color:var(--green);font-size:10px;">● HL</span>':'')+'</div>'+
+      (l.desc?'<div class="meta">'+maEsc(l.desc)+'</div>':'')+
+      (l.contact?'<div class="meta">'+maEsc(l.contact)+'</div>':'')+
+      (l.hlValue?'<div class="meta" style="color:var(--green);font-weight:700;">$'+Number(l.hlValue).toLocaleString()+'</div>':'')+
+      '<label style="font-size:9px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-top:6px;">Move to</label>'+
+      '<select onchange="maLeadStageChange('+lid+',this.value)">'+
+      vis.map(function(c){return'<option value="'+c.id+'"'+(l.stage===c.id?' selected':'')+'>'+c.label+'</option>';}).join('')+
+      '</select></div>';
+  }).join('');
+}
+
+function maPickStage(id){
+  _maLeadStage=id;
+  renderMobileLeads();
+}
+
+function maLeadStageChange(leadId,newStage){
+  var lead=leads.find(function(l){return l.id===leadId;});
+  if(!lead||lead.stage===newStage)return;
+  lead.stage=newStage;
+  saveLeads();
+  renderKanban();
+  if(lead.hlId)updateHLStage(lead,newStage);
+  _maLeadStage=newStage;
+  renderMobileLeads();
+}
+
+function syncMaTrackers(){
+  var a=document.getElementById('tr1-ql-lnk'),b=document.getElementById('tr2-ql-lnk');
+  var ma1=document.getElementById('ma-tr1'),ma2=document.getElementById('ma-tr2');
+  if(ma1&&a)ma1.href=a.href;
+  if(ma2&&b)ma2.href=b.href;
+}
+
+function mobNav(id){
+  var map={home:'ma-pane-home',tasks:'ma-pane-tasks',calendar:'ma-pane-calendar',notes:'ma-pane-notes',pipeline:'ma-pane-pipeline',more:'ma-pane-more'};
+  document.querySelectorAll('.mnb').forEach(function(b){b.classList.toggle('active',b.id==='mnb-'+id);});
+  document.querySelectorAll('.ma-pane').forEach(function(p){p.classList.remove('ma-active');});
+  var pid=map[id];
+  if(pid){
+    var pane=document.getElementById(pid);
+    if(pane)pane.classList.add('ma-active');
+  }
+  try{
+    if(id==='home'){syncMobKPIs();updateMaGreeting();}
+    if(id==='tasks')renderMobTasks();
+    if(id==='calendar')renderMobileAgenda();
+    if(id==='notes')loadMobNoteHistory();
+    if(id==='pipeline')renderMobileLeads();
+    if(id==='more')syncMaTrackers();
+  }catch(e){}
+  localStorage.setItem('chs_mob_sec',id);
+}
+
+function showMobSection(id){mobNav(id);}
 // Register PWA service worker
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
@@ -3154,20 +3460,24 @@ if('serviceWorker' in navigator){
 // ── MOBILE DATA SYNC ─────────────────────────────────────────
 // Mirror live KPI values to mobile elements
 function syncMobKPIs(){
-  var map={
-    'kv-ol':'mob-kv-ol','kv-mp':'mob-kv-mp','kv-wr':'mob-kv-wr',
-    'kv-ui':'mob-kv-ui','kv-ji':'mob-kv-ji','kv-ps':'mob-kv-ps',
-    'wc-mo-income':'mob-mo-income','wc-mo-profit':'mob-mo-profit',
-    'wc-ytd-income':'mob-ytd-income','wc-ytd-profit':'mob-ytd-profit',
-    'w-ico':'mob-w-ico','w-tmp':'mob-w-tmp','w-dsc':'mob-w-dsc','w-fl':'mob-w-fl','w-hm':'mob-w-hm'
-  };
-  Object.keys(map).forEach(function(src){
-    var s=document.getElementById(src), d=document.getElementById(map[src]);
-    if(s&&d)d.textContent=s.textContent;
-  });
+  function copyPairs(pairs){
+    pairs.forEach(function(p){
+      var s=document.getElementById(p[0]),d=document.getElementById(p[1]);
+      if(s&&d)d.textContent=s.textContent;
+    });
+  }
+  copyPairs([
+    ['kv-ol','mob-kv-ol'],['kv-mp','mob-kv-mp'],['kv-wr','mob-kv-wr'],
+    ['kv-ui','mob-kv-ui'],['kv-ji','mob-kv-ji'],['kv-ps','mob-kv-ps'],
+    ['wc-mo-income','mob-mo-income'],['wc-mo-profit','mob-mo-profit'],
+    ['wc-ytd-income','mob-ytd-income'],['wc-ytd-profit','mob-ytd-profit'],
+    ['w-ico','mob-w-ico'],['w-tmp','mob-w-tmp'],['w-dsc','mob-w-dsc'],['w-fl','mob-w-fl'],['w-hm','mob-w-hm'],
+    ['kv-ji','ma-kv-ji'],['kv-wr','ma-kv-wr'],['kv-ui','ma-kv-ui'],['kv-ps','ma-kv-ps'],['kv-mp','ma-kv-mp'],['kv-ol','ma-kv-ol'],
+    ['wc-mo-income','ma-wc-mo-income'],['wc-ytd-income','ma-wc-ytd-income'],['wc-mo-profit','ma-wc-mo-profit'],['wc-ytd-profit','ma-wc-ytd-profit']
+  ]);
 }
 // Mirror mobile KPI strip when in mobile layout (tab visible); 15s is enough vs desktop updates
-intervalWhenVisible(function(){if(isMobile())syncMobKPIs();},15000);
+intervalWhenVisible(function(){if(isAppMobile())syncMobKPIs();},15000);
 
 // Mobile task list render — mirrors desktop but optimised for touch
 function renderMobTasks(){
@@ -3332,7 +3642,7 @@ function loadMobNoteHistory(){
 function refreshAll(){
   renderCalendar();fetchWeather();fetchSheetKPIs();fetchWCData();fetchJobberMetrics();fetchHLData();
   if(oauthToken){fetchGoogleTasks();fetchGoogleMeetings();fetchOAuthCalendar();}
-  if(isMobile()){syncMobKPIs();renderMobTasks();renderMobCalendar();}
+  if(isAppMobile()){syncMobKPIs();renderMobTasks();renderMobileAgenda();renderMobileLeads();}
 }
 </script>
 </body>
