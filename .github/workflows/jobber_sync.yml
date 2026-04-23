@@ -15,13 +15,6 @@ jobs:
       - name: Install dependencies
         run: pip install requests --quiet --break-system-packages
 
-      - name: Test Jobber Connection
-        env:
-          JOBBER_CLIENT_ID: ${{ secrets.JOBBER_CLIENT_ID }}
-          JOBBER_CLIENT_SECRET: ${{ secrets.JOBBER_CLIENT_SECRET }}
-          JOBBER_REFRESH_TOKEN: ${{ secrets.JOBBER_REFRESH_TOKEN }}
-        run: python3 jobber_test.py
-
       - name: Run Jobber Sync
         env:
           JOBBER_CLIENT_ID: ${{ secrets.JOBBER_CLIENT_ID }}
