@@ -1,9 +1,11 @@
 name: Jobber Sync
 
 on:
-  # Hourly cron will be re-enabled once the current run is verified stable.
-  # schedule:
-  #   - cron: '0 * * * *'
+  schedule:
+    # Every 2 hours on the hour (UTC). Gives Jobber's rate-limit budget time
+    # to reset between runs. Manual triggers via workflow_dispatch should wait
+    # at least 15 min after a scheduled run to avoid throttling.
+    - cron: '0 */2 * * *'
   workflow_dispatch:
 
 jobs:
