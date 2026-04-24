@@ -128,16 +128,39 @@ HEADERS = {
 }
 
 
-def jobber_query(query):
-    """Run a GraphQL query. Always returns a dict (possibly empty) — never None."""
-    r = requests.post(JOBBER_API, headers=HEADERS, json={"query": query}, timeout=60)
-    if r.status_code != 200:
-        print(f"Jobber API error: {r.status_code} {r.text[:200]}")
-        return {}
-    data = r.json()
-    if "errors" in data:
-        print(f"GraphQL errors: {data['errors']}")
-    return data.get("data") or {}
+def jobber_query(query, max_retries=4):
+    """Run a GraphQL query. Retries with exponential backoff on THROTTLED errors.
+    Always returns a dict (possibly empty) — never None.
+    """
+    backoff = 5
+    for attempt in range(max_retries):
+        try:
+            r = requests.post(JOBBER_API, headers=HEADERS, json={"query": query}, timeout=60)
+        except requests.RequestException as e:
+            print(f"Jobber request failed: {e}")
+            return {}
+        if r.status_code != 200:
+            print(f"Jobber API error: {r.status_code} {r.text[:200]}")
+            return {}
+        try:
+            data = r.json()
+        except ValueError:
+            print(f"Jobber returned non-JSON: {r.text[:200]}")
+            return {}
+        errors = data.get("errors") or []
+        throttled = any(
+            (e.get("extensions") or {}).get("code") == "THROTTLED" for e in errors
+        )
+        if throttled and attempt < max_retries - 1:
+            print(f"  Throttled by Jobber, waiting {backoff}s before retry {attempt + 2}/{max_retries}...")
+            time.sleep(backoff)
+            backoff *= 2
+            continue
+        if errors:
+            print(f"GraphQL errors: {errors}")
+        return data.get("data") or {}
+    print("  Exhausted throttle retries — returning empty result")
+    return {}
 
 
 def safe_nodes(container, *keys):
@@ -495,20 +518,28 @@ print(f"Profit  metrics — YTD: ${ytd_profit_final:.2f} | Month: ${monthly_prof
 # ── Write metrics to Dashboard!B2:G2 ─────────────────────────
 # B2=YTD Revenue  C2=Monthly Revenue  D2=Weekly Collections
 # E2=YTD Profit   F2=Monthly Profit   G2=Job Count
-dashboard_payload = {
-    "tab": "Dashboard",
-    "range": "B2:G2",
-    "values": [[
-        round(ytd_collections or ytd_revenue, 2),
-        round(monthly_collections, 2),
-        round(weekly_collections, 2),
-        round(ytd_profit_final, 2),
-        round(monthly_profit, 2),
-        ytd_jobs
-    ]]
-}
-resp = script_get(JOB_TRACKER_SCRIPT, dashboard_payload)
-print(f"Dashboard tab write: {resp[:100]}")
+#
+# Safety guard: if the jobs query failed (e.g. throttled) we'd end up writing
+# zeroes for YTD Profit, Monthly Profit, and Job Count — silently corrupting
+# the dashboard. Skip the write in that case so yesterday's good values stay.
+if len(jobs_all) == 0:
+    print("!! Skipping Dashboard!B2:G2 write — jobs query returned 0 results.")
+    print("!! (This usually means throttling or an API issue. Prior values preserved.)")
+else:
+    dashboard_payload = {
+        "tab": "Dashboard",
+        "range": "B2:G2",
+        "values": [[
+            round(ytd_collections or ytd_revenue, 2),
+            round(monthly_collections, 2),
+            round(weekly_collections, 2),
+            round(ytd_profit_final, 2),
+            round(monthly_profit, 2),
+            ytd_jobs
+        ]]
+    }
+    resp = script_get(JOB_TRACKER_SCRIPT, dashboard_payload)
+    print(f"Dashboard tab write: {resp[:100]}")
 
 
 # ── Weekly new sales ──────────────────────────────────────────
