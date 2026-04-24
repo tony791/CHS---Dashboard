@@ -21,10 +21,12 @@ WC_TRACKER_SCRIPT  = "https://script.google.com/macros/s/AKfycbzN2yakVRoBYdSa-F-
 
 JOBBER_API = "https://api.getjobber.com/api/graphql"
 
-# Hard cap on total jobs to fetch (50 pages × 100 jobs = 5,000 jobs max).
+# Hard cap on total jobs to fetch (200 pages × 25 jobs = 5,000 jobs max).
+# Page size dropped from 100 to 25 because the nested per-job query (lineItems,
+# paymentRecords, etc) pushed us past Jobber's 10k credit bucket at 100/page.
 # Bumped when we cross 5k lifetime jobs (good problem to have).
 MAX_JOBS_TO_FETCH = 5000
-JOBS_PAGE_SIZE = 100
+JOBS_PAGE_SIZE = 25
 
 
 # ── GitHub secret rotation ────────────────────────────────────
