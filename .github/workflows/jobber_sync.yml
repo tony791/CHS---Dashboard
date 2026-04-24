@@ -1,8 +1,9 @@
 name: Jobber Sync
 
 on:
-  #schedule:
-   # - cron: '0 * * * *'
+  # Hourly cron will be re-enabled once the current run is verified stable.
+  # schedule:
+  #   - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +14,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: pip install requests --quiet --break-system-packages
+        run: pip install requests pynacl --quiet --break-system-packages
 
       - name: Run Jobber Sync
         env:
@@ -23,4 +24,5 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           JOB_TRACKER_SHEET_ID: ${{ secrets.JOB_TRACKER_SHEET_ID }}
           WC_SHEET_ID: ${{ secrets.WC_SHEET_ID }}
+          GH_TOKEN_ROTATOR: ${{ secrets.GH_TOKEN_ROTATOR }}
         run: python3 jobber_sync.py
