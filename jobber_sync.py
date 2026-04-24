@@ -128,11 +128,16 @@ HEADERS = {
 }
 
 
-def jobber_query(query, max_retries=4):
-    """Run a GraphQL query. Retries with exponential backoff on THROTTLED errors.
+def jobber_query(query, max_retries=5):
+    """Run a GraphQL query. Retries on THROTTLED errors.
+
+    Prefers Jobber's own throttleStatus.restoreRate + requestedQueryCost hints
+    when present (tells us exactly how long credits need to refill). Falls back
+    to exponential backoff otherwise.
+
     Always returns a dict (possibly empty) — never None.
     """
-    backoff = 5
+    backoff = 15
     for attempt in range(max_retries):
         try:
             r = requests.post(JOBBER_API, headers=HEADERS, json={"query": query}, timeout=60)
@@ -152,8 +157,22 @@ def jobber_query(query, max_retries=4):
             (e.get("extensions") or {}).get("code") == "THROTTLED" for e in errors
         )
         if throttled and attempt < max_retries - 1:
-            print(f"  Throttled by Jobber, waiting {backoff}s before retry {attempt + 2}/{max_retries}...")
-            time.sleep(backoff)
+            # Try to parse Jobber's throttleStatus hint from the first throttled error.
+            wait_s = backoff
+            for err in errors:
+                ext = err.get("extensions") or {}
+                cost = ext.get("cost") or {}
+                status = cost.get("throttleStatus") or {}
+                requested = cost.get("requestedQueryCost") or 0
+                currently = status.get("currentlyAvailable") or 0
+                restore = status.get("restoreRate") or 0
+                if requested and restore and requested > currently:
+                    hint = (requested - currently) / restore
+                    # Add 25% buffer; cap at 5 min to avoid runaway waits.
+                    wait_s = min(int(hint * 1.25) + 2, 300)
+                    break
+            print(f"  Throttled by Jobber, waiting {wait_s}s before retry {attempt + 2}/{max_retries}...")
+            time.sleep(wait_s)
             backoff *= 2
             continue
         if errors:
