@@ -3212,11 +3212,11 @@ function buildTicker(){
 }
 
 // ── BUSINESS PULSE — JOBBER DIRECT DATA ──────────────────────
-// jobber_sync writes Dashboard!B2:G2 every hour:
+// jobber_sync writes KPI_Sync!B2:G2 every 2 hours:
 // B=YTD Rev  C=Monthly Rev  D=Weekly Coll  E=YTD Profit  F=Monthly Profit  G=Job Count
 function fetchJobberMetrics(){
   var auth=sheetsAuth();
-  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent('Dashboard!B2:G2')+auth.qs;
+  var url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'/values/'+encodeURIComponent('KPI_Sync!B2:G2')+auth.qs;
   fetch(url,{headers:auth.headers})
     .then(function(r){return r.json();})
     .then(function(d){

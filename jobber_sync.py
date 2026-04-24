@@ -515,19 +515,20 @@ print(f"Revenue metrics — YTD: ${ytd_collections:.2f} | Month: ${monthly_colle
 print(f"Profit  metrics — YTD: ${ytd_profit_final:.2f} | Month: ${monthly_profit:.2f}")
 
 
-# ── Write metrics to Dashboard!B2:G2 ─────────────────────────
+# ── Write metrics to KPI_Sync!B2:G2 ──────────────────────────
+# Dedicated tab for sync output — keeps the "Dashboard" pretty view untouched.
 # B2=YTD Revenue  C2=Monthly Revenue  D2=Weekly Collections
 # E2=YTD Profit   F2=Monthly Profit   G2=Job Count
 #
 # Safety guard: if the jobs query failed (e.g. throttled) we'd end up writing
 # zeroes for YTD Profit, Monthly Profit, and Job Count — silently corrupting
-# the dashboard. Skip the write in that case so yesterday's good values stay.
+# the dashboard. Skip the write in that case so the prior good values stay.
 if len(jobs_all) == 0:
-    print("!! Skipping Dashboard!B2:G2 write — jobs query returned 0 results.")
+    print("!! Skipping KPI_Sync!B2:G2 write — jobs query returned 0 results.")
     print("!! (This usually means throttling or an API issue. Prior values preserved.)")
 else:
     dashboard_payload = {
-        "tab": "Dashboard",
+        "tab": "KPI_Sync",
         "range": "B2:G2",
         "values": [[
             round(ytd_collections or ytd_revenue, 2),
@@ -539,7 +540,7 @@ else:
         ]]
     }
     resp = script_get(JOB_TRACKER_SCRIPT, dashboard_payload)
-    print(f"Dashboard tab write: {resp[:100]}")
+    print(f"KPI_Sync tab write: {resp[:100]}")
 
 
 # ── Weekly new sales ──────────────────────────────────────────

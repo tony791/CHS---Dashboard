@@ -108,7 +108,7 @@ main (max-width: 1800px, centered, margin: 0 auto)
 | `loadNoteHistory()` | Loads Smart Notes from Google Sheets |
 | `archiveNote(sheetRow, btn)` | Moves note to Archived Notes tab |
 | `autoArchiveDoneRows(doneRows)` | Batch archives Done notes |
-| `fetchJobberMetrics()` | Reads Dashboard!B2:G2 from Job Tracker sheet |
+| `fetchJobberMetrics()` | Reads KPI_Sync!B2:G2 from Job Tracker sheet |
 | `fetchSheetKPIs()` | Reads KPI values from Job Tracker sheet |
 | `refreshAll()` | Calls all fetch functions |
 | `renderCalendar()` | Renders the calendar grid |
